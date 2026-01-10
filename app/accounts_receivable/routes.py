@@ -7,7 +7,7 @@ from fpdf import FPDF
 
 from app import db
 from app.accounts_receivable import bp
-from app.accounts_receivable.forms import CustomerForm, InvoiceForm, PaymentForm, EmailInvoiceForm
+from app.accounts_receivable.forms import CustomerForm, InvoiceForm, PaymentForm, EmailInvoiceForm, ItemForm
 from app.auth.email import send_email_with_attachments
 from app.models import Customer, Invoice, Payment, InvoiceItem, Product
 
@@ -107,6 +107,40 @@ def payments():
     return render_template('ar/payments.html', title='Payments', payments=payment_list)
 
 
+@bp.route('/items')
+@login_required
+def items():
+    item_list = Product.query.order_by(Product.code.asc()).all()
+    return render_template('ar/items.html', title='Items', items=item_list)
+
+
+@bp.route('/items/create', methods=['GET', 'POST'])
+@login_required
+def create_item():
+    form = ItemForm()
+    if form.validate_on_submit():
+        item = Product(
+            code=(form.code.data or '').strip() or None,
+            description=(form.description.data or '').strip(),
+            price=form.price.data,
+        )
+        db.session.add(item)
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Unable to create item. Make sure the code is unique.', 'danger')
+            return render_template('ar/create_item.html', title='Create Item', form=form)
+
+        flash('Item created.', 'success')
+        next_url = request.args.get('next')
+        if next_url and next_url.startswith('/'):
+            return redirect(next_url)
+        return redirect(url_for('ar.items'))
+
+    return render_template('ar/create_item.html', title='Create Item', form=form)
+
+
 @bp.route('/invoice/create', methods=['GET', 'POST'])
 @login_required
 def create_invoice():
@@ -122,7 +156,7 @@ def create_invoice():
     form.customer_id.choices = [(c.id, c.name) for c in customers]
 
     for item_form in form.items:
-        item_form.product_id.choices = product_choices
+        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.date.data = date.today()
@@ -133,13 +167,13 @@ def create_invoice():
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.product_id.data or 0
+            product_id = item_form.form.product_id.data or 0
             if product_id == 0:
                 product_id = None
 
-            description = (item_form.description.data or '').strip()
-            qty = item_form.quantity.data
-            unit_price = item_form.unit_price.data
+            description = (item_form.form.description.data or '').strip()
+            qty = item_form.form.quantity.data
+            unit_price = item_form.form.unit_price.data
 
             is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
             if is_blank:
@@ -156,7 +190,7 @@ def create_invoice():
             if unit_price is None and product:
                 unit_price = product.price
             if unit_price is None:
-                flash('Each invoice item must include a unit price (or select a product with a price).', 'danger')
+                flash('Each invoice item must include a unit price (or select an item with a default price).', 'danger')
                 return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
 
             amount = float(qty) * float(unit_price)

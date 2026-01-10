@@ -16,7 +16,7 @@ class CustomerForm(FlaskForm):
 
 
 class InvoiceItemForm(Form):
-    product_id = SelectField('Product', coerce=int, validators=[Optional()])
+    product_id = SelectField('Item', coerce=int, validators=[Optional()])
     description = StringField('Description', validators=[Optional(), Length(max=200)])
     quantity = DecimalField('Qty', validators=[Optional(), NumberRange(min=0.01)], places=2)
     unit_price = DecimalField('Unit Price', validators=[Optional(), NumberRange(min=0)], places=2)
@@ -34,6 +34,13 @@ class InvoiceForm(FlaskForm):
 
     items = FieldList(FormField(InvoiceItemForm), min_entries=10, max_entries=30)
     submit = SubmitField('Create Invoice')
+
+
+class ItemForm(FlaskForm):
+    code = StringField('Code', validators=[Optional(), Length(max=20)])
+    description = StringField('Description', validators=[DataRequired(), Length(max=200)])
+    price = DecimalField('Default Price', validators=[Optional(), NumberRange(min=0)], places=2)
+    submit = SubmitField('Save Item')
 
 
 class EmailInvoiceForm(FlaskForm):
