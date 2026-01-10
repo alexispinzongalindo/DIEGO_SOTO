@@ -5,7 +5,21 @@ from flask_mail import Message
 
 def send_async_email(app, msg):
     with app.app_context():
+        try:
+            mail.send(msg)
+        except Exception:
+            app.logger.exception('Email send failed')
+
+
+def send_email_sync(subject, sender, recipients, text_body, html_body):
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.body = text_body
+    msg.html = html_body
+    try:
         mail.send(msg)
+    except Exception:
+        current_app.logger.exception('Email send failed')
+        raise
 
 def send_email(subject, sender, recipients, text_body, html_body):
     msg = Message(subject, sender=sender, recipients=recipients)
@@ -24,6 +38,22 @@ def send_email_with_attachments(subject, sender, recipients, text_body, html_bod
         msg.attach(filename, content_type, data)
 
     Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+
+
+def send_email_with_attachments_sync(subject, sender, recipients, text_body, html_body, attachments):
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.body = text_body
+    msg.html = html_body
+
+    for attachment in attachments or []:
+        filename, content_type, data = attachment
+        msg.attach(filename, content_type, data)
+
+    try:
+        mail.send(msg)
+    except Exception:
+        current_app.logger.exception('Email send failed')
+        raise
 
 def send_password_reset_email(user):
     token = user.get_reset_password_token()

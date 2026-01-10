@@ -58,3 +58,7 @@ class PaymentForm(FlaskForm):
     reference = StringField('Reference', validators=[Optional(), Length(max=50)])
     notes = TextAreaField('Notes', validators=[Optional()])
     submit = SubmitField('Record Payment')
+
+
+class DeleteForm(FlaskForm):
+    submit = SubmitField('Delete')

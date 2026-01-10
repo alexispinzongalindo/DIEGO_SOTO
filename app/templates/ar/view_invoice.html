@@ -8,9 +8,14 @@
     </div>
     <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="{{ url_for('ar.invoices') }}">Back</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('ar.edit_invoice', id=invoice.id) }}"><i class="bi bi-pencil"></i> Edit</a>
         <a class="btn btn-outline-primary" target="_blank" href="{{ url_for('ar.invoice_pdf', id=invoice.id) }}"><i class="bi bi-printer"></i> Print</a>
         <a class="btn btn-outline-primary" href="{{ url_for('ar.email_invoice', id=invoice.id) }}"><i class="bi bi-envelope"></i> Email</a>
         <a class="btn btn-success" href="{{ url_for('ar.record_payment', invoice_id=invoice.id) }}"><i class="bi bi-cash-coin"></i> Record Payment</a>
+        <form action="{{ url_for('ar.delete_invoice', id=invoice.id) }}" method="post" class="d-inline">
+            {{ delete_form.hidden_tag() }}
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete invoice {{ invoice.number }}?');"><i class="bi bi-trash"></i> Delete</button>
+        </form>
     </div>
 </div>
 

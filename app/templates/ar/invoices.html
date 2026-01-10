@@ -25,6 +25,7 @@
                         <th class="text-end">Total</th>
                         <th class="text-end">Balance</th>
                         <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -49,10 +50,19 @@
                                 <span class="badge bg-secondary">Open</span>
                             {% endif %}
                         </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Invoice actions">
+                                <a class="btn btn-outline-primary" href="{{ url_for('ar.edit_invoice', id=invoice.id) }}">Edit</a>
+                                <form action="{{ url_for('ar.delete_invoice', id=invoice.id) }}" method="post" class="d-inline">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete invoice {{ invoice.number }}?');">Delete</button>
+                                </form>
+                            </div>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-4">
+                        <td colspan="8" class="text-center py-4">
                             <div class="text-muted">No invoices found</div>
                             <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ar.create_invoice') }}">Create your first invoice</a>
                         </td>

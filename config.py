@@ -4,6 +4,18 @@ from dotenv import load_dotenv
 basedir = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(basedir, '.env'))
 
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    val = val.strip().lower()
+    if val in ('1', 'true', 't', 'yes', 'y', 'on'):
+        return True
+    if val in ('0', 'false', 'f', 'no', 'n', 'off', ''):
+        return False
+    return default
+
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
     _database_url = os.environ.get('DATABASE_URL')
@@ -19,7 +31,8 @@ class Config:
     # Email configuration
     MAIL_SERVER = os.environ.get('MAIL_SERVER')
     MAIL_PORT = int(os.environ.get('MAIL_PORT') or 25)
-    MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS') is not None
+    MAIL_USE_TLS = _env_bool('MAIL_USE_TLS', default=False)
+    MAIL_USE_SSL = _env_bool('MAIL_USE_SSL', default=False)
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')

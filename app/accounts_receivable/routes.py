@@ -7,8 +7,8 @@ from fpdf import FPDF
 
 from app import db
 from app.accounts_receivable import bp
-from app.accounts_receivable.forms import CustomerForm, InvoiceForm, PaymentForm, EmailInvoiceForm, ItemForm
-from app.auth.email import send_email_with_attachments
+from app.accounts_receivable.forms import CustomerForm, InvoiceForm, PaymentForm, EmailInvoiceForm, ItemForm, DeleteForm
+from app.auth.email import send_email_with_attachments_sync
 from app.models import Customer, Invoice, Payment, InvoiceItem, Product
 
 
@@ -69,7 +69,8 @@ def _build_invoice_pdf(invoice, items):
 @login_required
 def invoices():
     invoice_list = Invoice.query.order_by(Invoice.date.desc()).all()
-    return render_template('ar/invoices.html', title='Invoices', invoices=invoice_list)
+    delete_form = DeleteForm()
+    return render_template('ar/invoices.html', title='Invoices', invoices=invoice_list, delete_form=delete_form)
 
 
 @bp.route('/customers')
@@ -77,6 +78,40 @@ def invoices():
 def customers():
     customer_list = Customer.query.order_by(Customer.name.asc()).all()
     return render_template('ar/customers.html', title='Customers', customers=customer_list)
+
+
+@bp.route('/customers/<int:id>')
+@login_required
+def view_customer(id):
+    customer = Customer.query.get_or_404(id)
+    invoice_list = customer.invoices.order_by(Invoice.date.desc()).all()
+    payment_list = customer.payments.order_by(Payment.date.desc()).all()
+    return render_template(
+        'ar/view_customer.html',
+        title=f'Customer {customer.name}',
+        customer=customer,
+        invoices=invoice_list,
+        payments=payment_list,
+    )
+
+
+@bp.route('/customers/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_customer(id):
+    customer = Customer.query.get_or_404(id)
+    form = CustomerForm(obj=customer)
+    if form.validate_on_submit():
+        customer.name = form.name.data
+        customer.address = form.address.data
+        customer.phone = form.phone.data
+        customer.email = form.email.data
+        customer.tax_id = form.tax_id.data
+        customer.credit_limit = form.credit_limit.data
+        db.session.commit()
+        flash('Customer updated.', 'success')
+        return redirect(url_for('ar.view_customer', id=customer.id))
+
+    return render_template('ar/edit_customer.html', title=f'Edit Customer {customer.name}', form=form, customer=customer)
 
 
 @bp.route('/customers/create', methods=['GET', 'POST'])
@@ -249,6 +284,152 @@ def create_invoice():
     return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
 
 
+@bp.route('/invoice/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_invoice(id):
+    invoice = Invoice.query.get_or_404(id)
+
+    customers = Customer.query.order_by(Customer.name.asc()).all()
+    if not customers:
+        flash('Create a customer before editing an invoice.', 'warning')
+        return redirect(url_for('ar.create_customer'))
+
+    products = Product.query.order_by(Product.code.asc()).all()
+    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
+
+    form = InvoiceForm(obj=invoice)
+    form.submit.label.text = 'Save Invoice'
+    form.customer_id.choices = [(c.id, c.name) for c in customers]
+
+    for item_form in form.items:
+        item_form.form.product_id.choices = product_choices
+
+    if request.method == 'GET':
+        form.customer_id.data = invoice.customer_id
+        existing_items = invoice.items.order_by(InvoiceItem.id.asc()).all()
+        for idx, inv_item in enumerate(existing_items[: len(form.items)]):
+            form.items[idx].form.product_id.data = inv_item.product_id or 0
+            form.items[idx].form.description.data = inv_item.description
+            form.items[idx].form.quantity.data = inv_item.quantity
+            form.items[idx].form.unit_price.data = inv_item.unit_price
+
+    if form.validate_on_submit():
+        item_rows = []
+        subtotal = 0.0
+        for item_form in form.items:
+            product_id = item_form.form.product_id.data or 0
+            if product_id == 0:
+                product_id = None
+
+            description = (item_form.form.description.data or '').strip()
+            qty = item_form.form.quantity.data
+            unit_price = item_form.form.unit_price.data
+
+            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            if is_blank:
+                continue
+
+            product = Product.query.get(product_id) if product_id else None
+            if not description and product:
+                description = product.description or ''
+
+            if qty is None:
+                flash('Each invoice item must include a quantity.', 'danger')
+                return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
+
+            if unit_price is None and product:
+                unit_price = product.price
+            if unit_price is None:
+                flash('Each invoice item must include a unit price (or select an item with a default price).', 'danger')
+                return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
+
+            amount = float(qty) * float(unit_price)
+            subtotal += amount
+            item_rows.append({
+                'product_id': product_id,
+                'description': description,
+                'quantity': qty,
+                'unit_price': unit_price,
+                'amount': amount,
+            })
+
+        if not item_rows:
+            flash('Add at least one invoice item.', 'danger')
+            return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
+
+        tax = float(form.tax.data or 0)
+        total = subtotal + tax
+
+        invoice.number = form.number.data
+        invoice.date = form.date.data
+        invoice.due_date = form.due_date.data
+        invoice.customer_id = form.customer_id.data
+        invoice.subtotal = subtotal
+        invoice.tax = tax
+        invoice.total = total
+        invoice.terms = form.terms.data
+        invoice.notes = form.notes.data
+
+        existing_items = invoice.items.all()
+        for inv_item in existing_items:
+            db.session.delete(inv_item)
+        db.session.flush()
+
+        for row in item_rows:
+            inv_item = InvoiceItem(
+                invoice=invoice,
+                product_id=row['product_id'],
+                description=row['description'],
+                quantity=row['quantity'],
+                unit_price=row['unit_price'],
+                amount=row['amount'],
+            )
+            db.session.add(inv_item)
+
+        if invoice.balance <= 0.01:
+            invoice.status = 'paid'
+        elif invoice.paid_amount > 0:
+            invoice.status = 'partial'
+        elif invoice.is_overdue and invoice.balance > 0:
+            invoice.status = 'overdue'
+        else:
+            invoice.status = 'open'
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Unable to update invoice. Make sure the invoice number is unique.', 'danger')
+            return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
+
+        flash('Invoice updated.', 'success')
+        return redirect(url_for('ar.view_invoice', id=invoice.id))
+
+    return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
+
+
+@bp.route('/invoice/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_invoice(id):
+    invoice = Invoice.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash('Unable to delete invoice.', 'danger')
+        return redirect(url_for('ar.view_invoice', id=invoice.id))
+
+    if invoice.payments.count() > 0:
+        flash('Cannot delete an invoice that has payments recorded.', 'warning')
+        return redirect(url_for('ar.view_invoice', id=invoice.id))
+
+    items = invoice.items.all()
+    for inv_item in items:
+        db.session.delete(inv_item)
+    db.session.delete(invoice)
+    db.session.commit()
+    flash('Invoice deleted.', 'success')
+    return redirect(url_for('ar.invoices'))
+
+
 @bp.route('/payment/record', methods=['GET', 'POST'])
 @login_required
 def record_payment():
@@ -351,12 +532,14 @@ def view_invoice(id):
         if revenue_total > 0:
             margin_pct = (gross_profit / revenue_total) * 100
 
+    delete_form = DeleteForm()
     return render_template(
         'ar/view_invoice.html',
         title=f'Invoice {invoice.number}',
         invoice=invoice,
         items=item_list,
         payments=payment_list,
+        delete_form=delete_form,
         gross_profit=gross_profit,
         margin_pct=margin_pct,
     )
@@ -390,18 +573,38 @@ def email_invoice(id):
     if form.validate_on_submit():
         pdf_data = _build_invoice_pdf(invoice, items)
         subject = f"Invoice {invoice.number}"
-        sender = current_app.config['ADMINS'][0]
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config['ADMINS'][0]
         recipients = [form.to_email.data]
         text_body = render_template('email/invoice.txt', invoice=invoice, message=form.message.data)
         html_body = render_template('email/invoice.html', invoice=invoice, message=form.message.data)
-        send_email_with_attachments(
-            subject=subject,
-            sender=sender,
-            recipients=recipients,
-            text_body=text_body,
-            html_body=html_body,
-            attachments=[(f"Invoice-{invoice.number}.pdf", 'application/pdf', pdf_data)],
-        )
+
+        missing = []
+        if not current_app.config.get('MAIL_SERVER'):
+            missing.append('MAIL_SERVER')
+        if not current_app.config.get('MAIL_USERNAME'):
+            missing.append('MAIL_USERNAME')
+        if not current_app.config.get('MAIL_PASSWORD'):
+            missing.append('MAIL_PASSWORD')
+
+        if missing:
+            flash(f"Email is not configured (missing: {', '.join(missing)}).", 'danger')
+            return render_template('ar/email_invoice.html', title=f'Email Invoice {invoice.number}', form=form, invoice=invoice)
+
+        try:
+            send_email_with_attachments_sync(
+                subject=subject,
+                sender=sender,
+                recipients=recipients,
+                text_body=text_body,
+                html_body=html_body,
+                attachments=[(f"Invoice-{invoice.number}.pdf", 'application/pdf', pdf_data)],
+            )
+        except Exception as e:
+            current_app.logger.exception('Failed to send invoice email')
+            msg = str(e).strip() or 'Unknown error'
+            flash(f'Failed to send email: {msg}', 'danger')
+            return render_template('ar/email_invoice.html', title=f'Email Invoice {invoice.number}', form=form, invoice=invoice)
+
         flash('Invoice emailed.', 'success')
         return redirect(url_for('ar.view_invoice', id=invoice.id))
 

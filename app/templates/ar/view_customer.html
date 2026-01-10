@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Customer{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">{{ customer.name }}</h3>
+        <div class="text-muted">Customer</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('ar.customers') }}">Back</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('ar.edit_customer', id=customer.id) }}"><i class="bi bi-pencil"></i> Edit</a>
+        {% if customer.phone %}
+            <a class="btn btn-outline-success" href="tel:{{ customer.phone }}"><i class="bi bi-telephone"></i> Call</a>
+        {% endif %}
+        <a class="btn btn-success" href="{{ url_for('ar.record_payment', customer_id=customer.id) }}"><i class="bi bi-cash-coin"></i> Record Payment</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Email</div>
+                <div class="fw-semibold">{{ customer.email or '—' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Phone</div>
+                <div class="fw-semibold">{{ customer.phone or '—' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Credit Limit</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(customer.credit_limit or 0) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if customer.address or customer.tax_id %}
+<div class="card shadow-sm mb-3">
+    <div class="card-header">
+        <h5 class="mb-0">Details</h5>
+    </div>
+    <div class="card-body">
+        {% if customer.address %}
+            <div class="mb-2"><span class="text-muted">Address:</span> {{ customer.address }}</div>
+        {% endif %}
+        {% if customer.tax_id %}
+            <div class="mb-2"><span class="text-muted">Tax ID:</span> {{ customer.tax_id }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Invoices</h5>
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ar.create_invoice') }}">New Invoice</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Due Date</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Balance</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invoice in invoices %}
+                    <tr>
+                        <td><a class="text-decoration-none" href="{{ url_for('ar.view_invoice', id=invoice.id) }}">{{ invoice.number }}</a></td>
+                        <td>{{ invoice.date.strftime('%Y-%m-%d') if invoice.date else '' }}</td>
+                        <td>{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(invoice.total or 0) }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(invoice.balance or 0) }}</td>
+                        <td>
+                            {% if invoice.status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                            {% elif invoice.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                            {% elif invoice.status == 'partial' %}
+                                <span class="badge bg-warning text-dark">Partial</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Open</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">No invoices found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Payments</h5>
+        <a class="btn btn-sm btn-outline-success" href="{{ url_for('ar.record_payment', customer_id=customer.id) }}">Add Payment</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Invoice</th>
+                        <th class="text-end">Amount</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.date.strftime('%Y-%m-%d') if payment.date else '' }}</td>
+                        <td>
+                            {% if payment.invoice %}
+                                <a class="text-decoration-none" href="{{ url_for('ar.view_invoice', id=payment.invoice.id) }}">{{ payment.invoice.number }}</a>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td>{{ payment.payment_method or '' }}</td>
+                        <td>{{ payment.reference or '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="text-muted">No payments found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
