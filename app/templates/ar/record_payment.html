@@ -1,6 +1,87 @@
 {% extends "base.html" %}
 {% block title %}Record Payment{% endblock %}
 {% block content %}
-<h3>Record Payment</h3>
-<p class="text-muted">Payment recording UI is being built.</p>
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Record Payment</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ar.payments') }}">Back</a>
+            </div>
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control" + (' is-invalid' if form.date.errors else '')) }}
+                            {% for error in form.date.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            {{ form.customer_id.label(class="form-label") }}
+                            {{ form.customer_id(class="form-select" + (' is-invalid' if form.customer_id.errors else '')) }}
+                            {% for error in form.customer_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            {{ form.invoice_id.label(class="form-label") }}
+                            {{ form.invoice_id(class="form-select" + (' is-invalid' if form.invoice_id.errors else '')) }}
+                            {% for error in form.invoice_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">If you select an invoice, the customer will be set automatically.</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.amount.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.amount(class="form-control" + (' is-invalid' if form.amount.errors else '')) }}
+                            </div>
+                            {% for error in form.amount.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.payment_method.label(class="form-label") }}
+                            {{ form.payment_method(class="form-control" + (' is-invalid' if form.payment_method.errors else ''), placeholder="Check, Cash, ACH, etc.") }}
+                            {% for error in form.payment_method.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.reference.label(class="form-label") }}
+                            {{ form.reference(class="form-control" + (' is-invalid' if form.reference.errors else ''), placeholder="Reference") }}
+                            {% for error in form.reference.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes") }}
+                        {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('ar.payments') }}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

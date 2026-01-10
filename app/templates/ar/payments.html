@@ -1,6 +1,55 @@
 {% extends "base.html" %}
 {% block title %}Payments{% endblock %}
 {% block content %}
-<h3>Payments</h3>
-<p class="text-muted">Accounts Receivable payments module is being built.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Payments</h3>
+        <div class="text-muted">Accounts Receivable</div>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('ar.record_payment') }}"><i class="bi bi-cash-coin"></i> Record Payment</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Invoice</th>
+                        <th class="text-end">Amount</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.date.strftime('%Y-%m-%d') if payment.date else '' }}</td>
+                        <td>{{ payment.customer.name if payment.customer else '' }}</td>
+                        <td>
+                            {% if payment.invoice %}
+                                <a class="text-decoration-none" href="{{ url_for('ar.view_invoice', id=payment.invoice.id) }}">{{ payment.invoice.number }}</a>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td>{{ payment.payment_method or '' }}</td>
+                        <td>{{ payment.reference or '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4">
+                            <div class="text-muted">No payments found</div>
+                            <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ar.record_payment') }}">Record your first payment</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,6 +1,45 @@
 {% extends "base.html" %}
 {% block title %}Customers{% endblock %}
 {% block content %}
-<h3>Customers</h3>
-<p class="text-muted">Accounts Receivable customers module is being built.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Customers</h3>
+        <div class="text-muted">Accounts Receivable</div>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('ar.create_customer') }}"><i class="bi bi-person-plus"></i> New Customer</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th class="text-end">Credit Limit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in customers %}
+                    <tr>
+                        <td>{{ customer.name }}</td>
+                        <td>{{ customer.phone or '' }}</td>
+                        <td>{{ customer.email or '' }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(customer.credit_limit or 0) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center py-4">
+                            <div class="text-muted">No customers found</div>
+                            <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ar.create_customer') }}">Create your first customer</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

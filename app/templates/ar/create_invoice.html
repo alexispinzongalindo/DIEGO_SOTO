@@ -1,6 +1,110 @@
 {% extends "base.html" %}
 {% block title %}Create Invoice{% endblock %}
 {% block content %}
-<h3>Create Invoice</h3>
-<p class="text-muted">Invoice creation UI is being built.</p>
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Create Invoice</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ar.invoices') }}">Back</a>
+            </div>
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.number.label(class="form-label") }}
+                            {{ form.number(class="form-control" + (' is-invalid' if form.number.errors else ''), placeholder="INV-1001") }}
+                            {% for error in form.number.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control" + (' is-invalid' if form.date.errors else '')) }}
+                            {% for error in form.date.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.due_date.label(class="form-label") }}
+                            {{ form.due_date(class="form-control" + (' is-invalid' if form.due_date.errors else '')) }}
+                            {% for error in form.due_date.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.customer_id.label(class="form-label") }}
+                            {{ form.customer_id(class="form-select" + (' is-invalid' if form.customer_id.errors else '')) }}
+                            {% for error in form.customer_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Need a new customer?
+                                <a href="{{ url_for('ar.create_customer') }}">Create one</a>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.terms.label(class="form-label") }}
+                            {{ form.terms(class="form-control" + (' is-invalid' if form.terms.errors else ''), placeholder="Net 30") }}
+                            {% for error in form.terms.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.subtotal.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.subtotal(class="form-control" + (' is-invalid' if form.subtotal.errors else '')) }}
+                            </div>
+                            {% for error in form.subtotal.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.tax.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.tax(class="form-control" + (' is-invalid' if form.tax.errors else '')) }}
+                            </div>
+                            {% for error in form.tax.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.total.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.total(class="form-control" + (' is-invalid' if form.total.errors else ''), placeholder="Leave blank to auto-calculate") }}
+                            </div>
+                            {% for error in form.total.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes") }}
+                        {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('ar.invoices') }}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

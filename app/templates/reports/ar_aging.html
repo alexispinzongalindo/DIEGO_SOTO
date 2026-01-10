@@ -1,6 +1,104 @@
 {% extends "base.html" %}
 {% block title %}A/R Aging{% endblock %}
 {% block content %}
-<h3>A/R Aging</h3>
-<p class="text-muted">A/R aging report is being built.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">A/R Aging</h3>
+        <div class="text-muted">As of {{ today.strftime('%Y-%m-%d') if today else '' }}</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('ar.invoices') }}">Back to Invoices</a>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-2">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Current</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(buckets.current) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">1-30</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(buckets['1_30']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">31-60</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(buckets['31_60']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">61-90</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(buckets['61_90']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">90+</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(buckets['90_plus']) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Total</div>
+                <div class="fw-semibold">${{ "%0.2f"|format(buckets.total) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h5 class="mb-0">By Customer</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Customer</th>
+                        <th class="text-end">Current</th>
+                        <th class="text-end">1-30</th>
+                        <th class="text-end">31-60</th>
+                        <th class="text-end">61-90</th>
+                        <th class="text-end">90+</th>
+                        <th class="text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in customer_rows %}
+                    <tr>
+                        <td>{{ row.customer.name if row.customer else '' }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(row.current) }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(row['1_30']) }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(row['31_60']) }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(row['61_90']) }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(row['90_plus']) }}</td>
+                        <td class="text-end fw-semibold">${{ "%0.2f"|format(row.total) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">No outstanding balances found</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
