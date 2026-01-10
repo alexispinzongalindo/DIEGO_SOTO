@@ -36,6 +36,9 @@ class Config:
     MAIL_USERNAME = (os.environ.get('MAIL_USERNAME') or '').strip() or None
     MAIL_PASSWORD = (os.environ.get('MAIL_PASSWORD') or '').strip() or None
     MAIL_DEFAULT_SENDER = (os.environ.get('MAIL_DEFAULT_SENDER') or '').strip() or None
+    RESEND_API_KEY = (os.environ.get('RESEND_API_KEY') or '').strip() or None
+    RESEND_FROM = (os.environ.get('RESEND_FROM') or '').strip() or None
+    RESEND_TIMEOUT = int(os.environ.get('RESEND_TIMEOUT') or 10)
     SENDGRID_API_KEY = (os.environ.get('SENDGRID_API_KEY') or '').strip() or None
     SENDGRID_FROM = (os.environ.get('SENDGRID_FROM') or '').strip() or None
     SENDGRID_TIMEOUT = int(os.environ.get('SENDGRID_TIMEOUT') or 10)

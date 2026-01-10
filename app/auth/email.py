@@ -133,10 +133,22 @@ def _send_email_with_attachments_safe(app, subject, sender, recipients, text_bod
 
 
 def send_email_with_attachments_sync(subject, sender, recipients, text_body, html_body, attachments):
-    api_key = (current_app.config.get('SENDGRID_API_KEY') or '').strip()
-    if api_key:
+    resend_key = (current_app.config.get('RESEND_API_KEY') or '').strip()
+    if resend_key:
+        return _send_via_resend(
+            api_key=resend_key,
+            subject=subject,
+            sender=sender,
+            recipients=recipients,
+            text_body=text_body,
+            html_body=html_body,
+            attachments=attachments,
+        )
+
+    sendgrid_key = (current_app.config.get('SENDGRID_API_KEY') or '').strip()
+    if sendgrid_key:
         return _send_via_sendgrid(
-            api_key=api_key,
+            api_key=sendgrid_key,
             subject=subject,
             sender=sender,
             recipients=recipients,
@@ -200,6 +212,50 @@ def _send_via_sendgrid(api_key, subject, sender, recipients, text_body, html_bod
     )
     if resp.status_code >= 400:
         raise RuntimeError(f'SendGrid send failed: {resp.status_code} {resp.text}')
+
+
+def _send_via_resend(api_key, subject, sender, recipients, text_body, html_body, attachments):
+    from_email = (current_app.config.get('RESEND_FROM') or sender or '').strip()
+    if not from_email:
+        raise RuntimeError('Resend is enabled but RESEND_FROM is not set.')
+
+    to_emails = [r for r in (recipients or []) if r]
+    if not to_emails:
+        raise RuntimeError('No recipients provided.')
+
+    payload = {
+        'from': from_email,
+        'to': to_emails,
+        'subject': subject,
+    }
+    if html_body:
+        payload['html'] = html_body
+    if text_body:
+        payload['text'] = text_body
+
+    if attachments:
+        rs_attachments = []
+        for filename, content_type, data in attachments:
+            if isinstance(data, str):
+                data = data.encode('utf-8')
+            rs_attachments.append(
+                {
+                    'filename': filename,
+                    'content': base64.b64encode(data).decode('ascii'),
+                    'content_type': content_type,
+                }
+            )
+        payload['attachments'] = rs_attachments
+
+    timeout = int(current_app.config.get('RESEND_TIMEOUT') or 10)
+    resp = requests.post(
+        'https://api.resend.com/emails',
+        json=payload,
+        headers={'Authorization': f'Bearer {api_key}'},
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f'Resend send failed: {resp.status_code} {resp.text}')
 
 def send_password_reset_email(user):
     token = user.get_reset_password_token()
