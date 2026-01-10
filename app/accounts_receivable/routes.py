@@ -1,5 +1,6 @@
 from datetime import date
 from io import BytesIO
+from urllib.parse import quote
 
 from flask import render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required
@@ -8,7 +9,6 @@ from fpdf import FPDF
 from app import db
 from app.accounts_receivable import bp
 from app.accounts_receivable.forms import CustomerForm, InvoiceForm, PaymentForm, EmailInvoiceForm, ItemForm, DeleteForm
-from app.auth.email import send_email_with_attachments_sync
 from app.models import Customer, Invoice, Payment, InvoiceItem, Product
 
 
@@ -571,41 +571,22 @@ def email_invoice(id):
             form.to_email.data = invoice.customer.email
 
     if form.validate_on_submit():
-        pdf_data = _build_invoice_pdf(invoice, items)
         subject = f"Invoice {invoice.number}"
-        sender = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config['ADMINS'][0]
-        recipients = [form.to_email.data]
         text_body = render_template('email/invoice.txt', invoice=invoice, message=form.message.data)
-        html_body = render_template('email/invoice.html', invoice=invoice, message=form.message.data)
-
-        missing = []
-        if not current_app.config.get('MAIL_SERVER'):
-            missing.append('MAIL_SERVER')
-        if not current_app.config.get('MAIL_USERNAME'):
-            missing.append('MAIL_USERNAME')
-        if not current_app.config.get('MAIL_PASSWORD'):
-            missing.append('MAIL_PASSWORD')
-
-        if missing:
-            flash(f"Email is not configured (missing: {', '.join(missing)}).", 'danger')
-            return render_template('ar/email_invoice.html', title=f'Email Invoice {invoice.number}', form=form, invoice=invoice)
-
-        try:
-            send_email_with_attachments_sync(
-                subject=subject,
-                sender=sender,
-                recipients=recipients,
-                text_body=text_body,
-                html_body=html_body,
-                attachments=[(f"Invoice-{invoice.number}.pdf", 'application/pdf', pdf_data)],
-            )
-        except Exception as e:
-            current_app.logger.exception('Failed to send invoice email')
-            msg = str(e).strip() or 'Unknown error'
-            flash(f'Failed to send email: {msg}', 'danger')
-            return render_template('ar/email_invoice.html', title=f'Email Invoice {invoice.number}', form=form, invoice=invoice)
-
-        flash('Invoice emailed.', 'success')
-        return redirect(url_for('ar.view_invoice', id=invoice.id))
+        pdf_url = url_for('ar.invoice_pdf', id=invoice.id)
+        mailto_url = (
+            f"mailto:{quote(form.to_email.data)}"
+            f"?subject={quote(subject)}"
+            f"&body={quote(text_body)}"
+        )
+        flash('Email draft created. Attach the PDF and send from your email client.', 'success')
+        return render_template(
+            'ar/email_invoice.html',
+            title=f'Email Invoice {invoice.number}',
+            form=form,
+            invoice=invoice,
+            pdf_url=pdf_url,
+            mailto_url=mailto_url,
+        )
 
     return render_template('ar/email_invoice.html', title=f'Email Invoice {invoice.number}', form=form, invoice=invoice)

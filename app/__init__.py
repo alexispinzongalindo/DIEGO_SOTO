@@ -36,7 +36,9 @@ def create_app(config_class=Config):
     app.register_blueprint(office_bp, url_prefix='/office')
 
     with app.app_context():
-        db.create_all()
+        database_uri = (app.config.get('SQLALCHEMY_DATABASE_URI') or '').strip().lower()
+        if database_uri.startswith('sqlite:'):
+            db.create_all()
 
     return app
 
