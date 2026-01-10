@@ -36,6 +36,10 @@ class Config:
     MAIL_USERNAME = (os.environ.get('MAIL_USERNAME') or '').strip() or None
     MAIL_PASSWORD = (os.environ.get('MAIL_PASSWORD') or '').strip() or None
     MAIL_DEFAULT_SENDER = (os.environ.get('MAIL_DEFAULT_SENDER') or '').strip() or None
+    SENDGRID_API_KEY = (os.environ.get('SENDGRID_API_KEY') or '').strip() or None
+    SENDGRID_FROM = (os.environ.get('SENDGRID_FROM') or '').strip() or None
+    SENDGRID_TIMEOUT = int(os.environ.get('SENDGRID_TIMEOUT') or 10)
+    MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT') or 10)
     ADMINS = [os.environ.get('ADMIN_EMAIL') or 'admin@example.com']
     
     # Items per page for pagination

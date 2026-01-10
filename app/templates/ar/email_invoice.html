@@ -31,10 +31,6 @@
 
                     <div class="d-flex gap-2">
                         {{ form.submit(class="btn btn-primary") }}
-                        {% if mailto_url and pdf_url %}
-                        <a class="btn btn-outline-primary" href="{{ mailto_url }}">Open Email App</a>
-                        <a class="btn btn-outline-primary" target="_blank" href="{{ pdf_url }}">Download PDF</a>
-                        {% endif %}
                         <a class="btn btn-outline-secondary" href="{{ url_for('ar.view_invoice', id=invoice.id) }}">Cancel</a>
                     </div>
                 </form>

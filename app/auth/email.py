@@ -2,6 +2,8 @@ from flask import render_template, current_app
 from app import mail
 from threading import Thread
 from flask_mail import Message
+import base64
+import requests
 import socket
 import smtplib
 import ssl
@@ -100,18 +102,49 @@ def send_email(subject, sender, recipients, text_body, html_body):
 
 
 def send_email_with_attachments(subject, sender, recipients, text_body, html_body, attachments):
-    msg = Message(subject, sender=sender, recipients=recipients)
-    msg.body = text_body
-    msg.html = html_body
+    Thread(
+        target=_send_email_with_attachments_safe,
+        args=(
+            current_app._get_current_object(),
+            subject,
+            sender,
+            recipients,
+            text_body,
+            html_body,
+            attachments,
+        ),
+    ).start()
 
-    for attachment in attachments or []:
-        filename, content_type, data = attachment
-        msg.attach(filename, content_type, data)
 
-    Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+def _send_email_with_attachments_safe(app, subject, sender, recipients, text_body, html_body, attachments):
+    with app.app_context():
+        try:
+            send_email_with_attachments_sync(
+                subject=subject,
+                sender=sender,
+                recipients=recipients,
+                text_body=text_body,
+                html_body=html_body,
+                attachments=attachments,
+            )
+        except Exception as e:
+            app.logger.exception('Email send failed')
+            app.logger.error(str(e))
 
 
 def send_email_with_attachments_sync(subject, sender, recipients, text_body, html_body, attachments):
+    api_key = (current_app.config.get('SENDGRID_API_KEY') or '').strip()
+    if api_key:
+        return _send_via_sendgrid(
+            api_key=api_key,
+            subject=subject,
+            sender=sender,
+            recipients=recipients,
+            text_body=text_body,
+            html_body=html_body,
+            attachments=attachments,
+        )
+
     msg = Message(subject, sender=sender, recipients=recipients)
     msg.body = text_body
     msg.html = html_body
@@ -126,6 +159,47 @@ def send_email_with_attachments_sync(subject, sender, recipients, text_body, htm
     except Exception as e:
         current_app.logger.exception('Email send failed')
         raise RuntimeError(_format_mail_send_error(current_app, e)) from e
+
+
+def _send_via_sendgrid(api_key, subject, sender, recipients, text_body, html_body, attachments):
+    from_email = (current_app.config.get('SENDGRID_FROM') or sender or '').strip()
+    if not from_email:
+        raise RuntimeError('SendGrid is enabled but SENDGRID_FROM is not set.')
+
+    payload = {
+        'personalizations': [{'to': [{'email': r} for r in (recipients or [])]}],
+        'from': {'email': from_email},
+        'subject': subject,
+        'content': [
+            {'type': 'text/plain', 'value': text_body or ''},
+            {'type': 'text/html', 'value': html_body or ''},
+        ],
+    }
+
+    if attachments:
+        sg_attachments = []
+        for filename, content_type, data in attachments:
+            if isinstance(data, str):
+                data = data.encode('utf-8')
+            sg_attachments.append(
+                {
+                    'content': base64.b64encode(data).decode('ascii'),
+                    'type': content_type,
+                    'filename': filename,
+                    'disposition': 'attachment',
+                }
+            )
+        payload['attachments'] = sg_attachments
+
+    timeout = int(current_app.config.get('SENDGRID_TIMEOUT') or 10)
+    resp = requests.post(
+        'https://api.sendgrid.com/v3/mail/send',
+        json=payload,
+        headers={'Authorization': f'Bearer {api_key}'},
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f'SendGrid send failed: {resp.status_code} {resp.text}')
 
 def send_password_reset_email(user):
     token = user.get_reset_password_token()
