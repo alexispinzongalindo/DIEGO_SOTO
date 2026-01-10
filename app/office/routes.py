@@ -182,41 +182,47 @@ def mark_notification_read(id):
 @login_required
 def assistant_command():
     payload = request.get_json(silent=True) or {}
-    text = (payload.get('text') or '').strip().lower()
+    raw_text = (payload.get('text') or '').strip()
+    text = raw_text.lower()
+    lang = (payload.get('lang') or '').strip().lower()
+    is_es = lang.startswith('es')
 
     now = datetime.utcnow()
 
-    if any(k in text for k in ['agenda', 'meetings', 'meeting today', 'today meetings']):
+    if any(k in text for k in ['agenda', 'meetings', 'meeting today', 'today meetings']) or (is_es and any(k in text for k in ['reuniones', 'reunión', 'reunion', 'reuniones hoy', 'reuniones de hoy', 'reunion hoy', 'reunión hoy'])):
         start = datetime(now.year, now.month, now.day)
         end = start + timedelta(days=1)
         meetings = Meeting.query.filter(Meeting.start_at >= start, Meeting.start_at < end).order_by(Meeting.start_at.asc()).all()
         if not meetings:
-            return jsonify({'speak': 'You have no meetings today.'})
+            return jsonify({'speak': 'No tienes reuniones hoy.' if is_es else 'You have no meetings today.'})
         parts = []
         for m in meetings[:5]:
             parts.append(f"{m.title} at {m.start_at.strftime('%H:%M')}")
-        speak = 'Today you have: ' + '; '.join(parts)
+        if is_es:
+            speak = 'Hoy tienes: ' + '; '.join(parts)
+        else:
+            speak = 'Today you have: ' + '; '.join(parts)
         return jsonify({'speak': speak, 'redirect_url': url_for('office.meetings')})
 
-    if any(k in text for k in ['overdue', 'past due', 'late invoices']):
+    if any(k in text for k in ['overdue', 'past due', 'late invoices']) or (is_es and any(k in text for k in ['facturas vencidas', 'facturas atrasadas', 'facturas en mora', 'facturas tarde'])):
         today = now.date()
         invoices = Invoice.query.filter(Invoice.due_date.isnot(None)).all()
         overdue = [inv for inv in invoices if inv.due_date and inv.due_date < today and inv.balance > 0.01]
         if not overdue:
-            return jsonify({'speak': 'You have no overdue invoices.'})
-        speak = f"You have {len(overdue)} overdue invoices."
+            return jsonify({'speak': 'No tienes facturas vencidas.' if is_es else 'You have no overdue invoices.'})
+        speak = f"Tienes {len(overdue)} facturas vencidas." if is_es else f"You have {len(overdue)} overdue invoices."
         return jsonify({'speak': speak, 'redirect_url': url_for('ar.invoices')})
 
-    if 'open invoices' in text or 'go to invoices' in text or 'invoices' == text:
-        return jsonify({'speak': 'Opening invoices.', 'redirect_url': url_for('ar.invoices')})
+    if 'open invoices' in text or 'go to invoices' in text or 'invoices' == text or (is_es and (text == 'facturas' or 'abrir facturas' in text or 'ir a facturas' in text)):
+        return jsonify({'speak': 'Abriendo facturas.' if is_es else 'Opening invoices.', 'redirect_url': url_for('ar.invoices')})
 
-    if 'open agenda' in text or 'go to agenda' in text:
-        return jsonify({'speak': 'Opening agenda.', 'redirect_url': url_for('office.meetings')})
+    if 'open agenda' in text or 'go to agenda' in text or (is_es and ('abrir agenda' in text or 'ir a agenda' in text or text == 'agenda')):
+        return jsonify({'speak': 'Abriendo agenda.' if is_es else 'Opening agenda.', 'redirect_url': url_for('office.meetings')})
 
-    if 'notifications' in text:
-        return jsonify({'speak': 'Opening notifications.', 'redirect_url': url_for('office.notifications')})
+    if 'notifications' in text or (is_es and 'notificaciones' in text):
+        return jsonify({'speak': 'Abriendo notificaciones.' if is_es else 'Opening notifications.', 'redirect_url': url_for('office.notifications')})
 
-    if 'dashboard' in text:
-        return jsonify({'speak': 'Opening dashboard.', 'redirect_url': url_for('main.dashboard')})
+    if 'dashboard' in text or (is_es and any(k in text for k in ['tablero', 'panel', 'inicio'])):
+        return jsonify({'speak': 'Abriendo tablero.' if is_es else 'Opening dashboard.', 'redirect_url': url_for('main.dashboard')})
 
-    return jsonify({'speak': "I didn't understand. Try: 'today's meetings' or 'overdue invoices'."})
+    return jsonify({'speak': "No entendí. Prueba: 'reuniones hoy' o 'facturas vencidas'." if is_es else "I didn't understand. Try: 'today's meetings' or 'overdue invoices'."})

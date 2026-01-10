@@ -1,21 +1,28 @@
 (function () {
   'use strict';
 
-  function speak(text) {
+  function speak(text, lang) {
     if (!('speechSynthesis' in window)) return;
     if (!text) return;
     window.speechSynthesis.cancel();
     const utter = new SpeechSynthesisUtterance(text);
+    if (lang) {
+      utter.lang = lang;
+      const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+      const match = voices.find(v => (v.lang || '').toLowerCase() === lang.toLowerCase()) ||
+        voices.find(v => (v.lang || '').toLowerCase().startsWith(lang.slice(0, 2).toLowerCase()));
+      if (match) utter.voice = match;
+    }
     utter.rate = 1;
     utter.pitch = 1;
     window.speechSynthesis.speak(utter);
   }
 
-  async function sendCommand(text) {
+  async function sendCommand(text, lang) {
     const res = await fetch('/office/assistant/command', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
+      body: JSON.stringify({ text, lang })
     });
     if (!res.ok) {
       throw new Error('Request failed');
@@ -28,6 +35,7 @@
     const statusEl = document.getElementById('voiceStatus');
     const transcriptEl = document.getElementById('voiceTranscript');
     const responseEl = document.getElementById('voiceResponse');
+    const langEl = document.getElementById('voiceLang');
     if (!startBtn || !statusEl || !transcriptEl || !responseEl) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -38,7 +46,28 @@
     }
 
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+    function resolveLang() {
+      const selected = langEl ? (langEl.value || 'auto') : 'auto';
+      if (selected !== 'auto') return selected;
+      return (navigator.language || 'en-US');
+    }
+
+    if (langEl) {
+      const saved = window.localStorage ? window.localStorage.getItem('voice_lang') : null;
+      if (saved) {
+        langEl.value = saved;
+      } else {
+        const guess = (navigator.language || '').toLowerCase();
+        if (guess.startsWith('es')) langEl.value = 'es-ES';
+      }
+      langEl.addEventListener('change', () => {
+        if (window.localStorage) {
+          window.localStorage.setItem('voice_lang', langEl.value);
+        }
+      });
+    }
+
+    recognition.lang = resolveLang();
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
@@ -50,6 +79,7 @@
       responseEl.value = '';
       statusEl.textContent = 'Listening...';
       try {
+        recognition.lang = resolveLang();
         recognition.start();
       } catch (e) {
         // ignore
@@ -62,11 +92,12 @@
       statusEl.textContent = 'Thinking...';
       busy = true;
       try {
-        const data = await sendCommand(text);
+        const activeLang = resolveLang();
+        const data = await sendCommand(text, activeLang);
         const speakText = data.speak || '';
         responseEl.value = speakText;
         statusEl.textContent = 'Done.';
-        speak(speakText);
+        speak(speakText, activeLang);
         if (data.redirect_url) {
           setTimeout(() => {
             window.location.href = data.redirect_url;
