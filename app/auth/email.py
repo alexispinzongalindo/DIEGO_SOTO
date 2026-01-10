@@ -10,6 +10,11 @@ def send_async_email(app, msg):
             mail.send(msg)
         except socket.gaierror:
             app.logger.exception('Email send failed (DNS resolution error)')
+        except OSError as e:
+            if getattr(e, 'errno', None) == -2:
+                app.logger.exception('Email send failed (DNS resolution error)')
+            else:
+                app.logger.exception('Email send failed')
         except Exception:
             app.logger.exception('Email send failed')
 
@@ -24,6 +29,13 @@ def send_email_sync(subject, sender, recipients, text_body, html_body):
         current_app.logger.exception('Email send failed (DNS resolution error)')
         host = current_app.config.get('MAIL_SERVER')
         raise RuntimeError(f"SMTP host could not be resolved (MAIL_SERVER={host}). Original error: {e}")
+    except OSError as e:
+        if getattr(e, 'errno', None) == -2:
+            current_app.logger.exception('Email send failed (DNS resolution error)')
+            host = current_app.config.get('MAIL_SERVER')
+            raise RuntimeError(f"SMTP host could not be resolved (MAIL_SERVER={host}). Original error: {e}")
+        current_app.logger.exception('Email send failed')
+        raise
     except Exception:
         current_app.logger.exception('Email send failed')
         raise
@@ -62,6 +74,13 @@ def send_email_with_attachments_sync(subject, sender, recipients, text_body, htm
         current_app.logger.exception('Email send failed (DNS resolution error)')
         host = current_app.config.get('MAIL_SERVER')
         raise RuntimeError(f"SMTP host could not be resolved (MAIL_SERVER={host}). Original error: {e}")
+    except OSError as e:
+        if getattr(e, 'errno', None) == -2:
+            current_app.logger.exception('Email send failed (DNS resolution error)')
+            host = current_app.config.get('MAIL_SERVER')
+            raise RuntimeError(f"SMTP host could not be resolved (MAIL_SERVER={host}). Original error: {e}")
+        current_app.logger.exception('Email send failed')
+        raise
     except Exception:
         current_app.logger.exception('Email send failed')
         raise
