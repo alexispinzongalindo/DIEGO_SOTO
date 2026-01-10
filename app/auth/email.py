@@ -2,11 +2,14 @@ from flask import render_template, current_app
 from app import mail
 from threading import Thread
 from flask_mail import Message
+import socket
 
 def send_async_email(app, msg):
     with app.app_context():
         try:
             mail.send(msg)
+        except socket.gaierror:
+            app.logger.exception('Email send failed (DNS resolution error)')
         except Exception:
             app.logger.exception('Email send failed')
 
@@ -17,6 +20,10 @@ def send_email_sync(subject, sender, recipients, text_body, html_body):
     msg.html = html_body
     try:
         mail.send(msg)
+    except socket.gaierror as e:
+        current_app.logger.exception('Email send failed (DNS resolution error)')
+        host = current_app.config.get('MAIL_SERVER')
+        raise RuntimeError(f"SMTP host could not be resolved (MAIL_SERVER={host}). Original error: {e}")
     except Exception:
         current_app.logger.exception('Email send failed')
         raise
@@ -51,6 +58,10 @@ def send_email_with_attachments_sync(subject, sender, recipients, text_body, htm
 
     try:
         mail.send(msg)
+    except socket.gaierror as e:
+        current_app.logger.exception('Email send failed (DNS resolution error)')
+        host = current_app.config.get('MAIL_SERVER')
+        raise RuntimeError(f"SMTP host could not be resolved (MAIL_SERVER={host}). Original error: {e}")
     except Exception:
         current_app.logger.exception('Email send failed')
         raise

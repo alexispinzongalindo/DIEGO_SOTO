@@ -29,13 +29,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Email configuration
-    MAIL_SERVER = os.environ.get('MAIL_SERVER')
+    MAIL_SERVER = (os.environ.get('MAIL_SERVER') or '').strip() or None
     MAIL_PORT = int(os.environ.get('MAIL_PORT') or 25)
     MAIL_USE_TLS = _env_bool('MAIL_USE_TLS', default=False)
     MAIL_USE_SSL = _env_bool('MAIL_USE_SSL', default=False)
-    MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
-    MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+    MAIL_USERNAME = (os.environ.get('MAIL_USERNAME') or '').strip() or None
+    MAIL_PASSWORD = (os.environ.get('MAIL_PASSWORD') or '').strip() or None
+    MAIL_DEFAULT_SENDER = (os.environ.get('MAIL_DEFAULT_SENDER') or '').strip() or None
     ADMINS = [os.environ.get('ADMIN_EMAIL') or 'admin@example.com']
     
     # Items per page for pagination
