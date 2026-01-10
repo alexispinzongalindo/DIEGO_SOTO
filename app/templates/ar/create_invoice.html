@@ -79,29 +79,29 @@
                                         {% for item in form.items %}
                                         <tr>
                                             <td>
-                                                {{ item.product_id(class="form-select" + (' is-invalid' if item.product_id.errors else '')) }}
-                                                {% for error in item.product_id.errors %}
+                                                {{ item.form.product_id(class="form-select" + (' is-invalid' if item.form.product_id.errors else '')) }}
+                                                {% for error in item.form.product_id.errors %}
                                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                                 {% endfor %}
                                             </td>
                                             <td>
-                                                {{ item.description(class="form-control" + (' is-invalid' if item.description.errors else ''), placeholder="Description") }}
-                                                {% for error in item.description.errors %}
+                                                {{ item.form.description(class="form-control" + (' is-invalid' if item.form.description.errors else ''), placeholder="Description") }}
+                                                {% for error in item.form.description.errors %}
                                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                                 {% endfor %}
                                             </td>
                                             <td>
-                                                {{ item.quantity(class="form-control text-end" + (' is-invalid' if item.quantity.errors else ''), placeholder="0") }}
-                                                {% for error in item.quantity.errors %}
+                                                {{ item.form.quantity(class="form-control text-end" + (' is-invalid' if item.form.quantity.errors else ''), placeholder="0") }}
+                                                {% for error in item.form.quantity.errors %}
                                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                                 {% endfor %}
                                             </td>
                                             <td>
                                                 <div class="input-group">
                                                     <span class="input-group-text">$</span>
-                                                    {{ item.unit_price(class="form-control text-end" + (' is-invalid' if item.unit_price.errors else ''), placeholder="0.00") }}
+                                                    {{ item.form.unit_price(class="form-control text-end" + (' is-invalid' if item.form.unit_price.errors else ''), placeholder="0.00") }}
                                                 </div>
-                                                {% for error in item.unit_price.errors %}
+                                                {% for error in item.form.unit_price.errors %}
                                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                                 {% endfor %}
                                             </td>
