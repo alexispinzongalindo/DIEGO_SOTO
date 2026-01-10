@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Agenda{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Agenda</h3>
+        <div class="text-muted">Meetings</div>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('office.create_meeting') }}"><i class="bi bi-calendar-plus"></i> New Meeting</a>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Title</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Location</th>
+                        <th>Reminder</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meeting in meetings %}
+                    <tr>
+                        <td>{{ meeting.title }}</td>
+                        <td>{{ meeting.start_at.strftime('%Y-%m-%d %H:%M') if meeting.start_at else '' }}</td>
+                        <td>{{ meeting.end_at.strftime('%Y-%m-%d %H:%M') if meeting.end_at else '' }}</td>
+                        <td>{{ meeting.location or '' }}</td>
+                        <td>{{ meeting.reminder_minutes if meeting.reminder_minutes is not none else '' }} min</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="text-muted">No meetings found</div>
+                            <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('office.create_meeting') }}">Create your first meeting</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

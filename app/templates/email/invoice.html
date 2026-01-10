@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice {{ invoice.number }}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
+    <h2 style="margin: 0 0 10px 0;">Invoice {{ invoice.number }}</h2>
+    <p style="margin: 0 0 10px 0;">Customer: <strong>{{ invoice.customer.name if invoice.customer else '' }}</strong></p>
+    <p style="margin: 0 0 10px 0;">Total: <strong>${{ "%0.2f"|format(invoice.total or 0) }}</strong></p>
+
+    {% if message %}
+    <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border: 1px solid #eee;">
+        {{ message }}
+    </div>
+    {% endif %}
+
+    <p style="margin: 20px 0 0 0;">A PDF copy of the invoice is attached to this email.</p>
+</body>
+</html>

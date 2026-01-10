@@ -63,9 +63,34 @@
                             <li><a class="dropdown-item" href="{{ url_for('reports.sales_by_product') }}">Sales by Product</a></li>
                         </ul>
                     </li>
+
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="officeDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-calendar3"></i> Office
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('office.meetings') }}">Agenda</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('office.notifications') }}">Notifications</a></li>
+                        </ul>
+                    </li>
                 </ul>
                 <ul class="navbar-nav">
                     {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link position-relative" href="{{ url_for('office.notifications') }}" aria-label="Notifications">
+                                <i class="bi bi-bell"></i>
+                                {% if unread_notifications and unread_notifications > 0 %}
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        {{ unread_notifications }}
+                                    </span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="voiceMicBtn" aria-label="Voice Assistant" data-bs-toggle="modal" data-bs-target="#voiceAssistantModal">
+                                <i class="bi bi-mic"></i>
+                            </a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="bi bi-person-circle"></i> {{ current_user.username }}
@@ -114,5 +139,33 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
+
+    <div class="modal fade" id="voiceAssistantModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Voice Assistant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <div class="text-muted" id="voiceStatus">Press Start and speak.</div>
+                        <button class="btn btn-sm btn-primary" type="button" id="voiceStartBtn"><i class="bi bi-mic"></i> Start</button>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">You said</label>
+                        <input class="form-control" id="voiceTranscript" placeholder="" readonly>
+                    </div>
+                    <div>
+                        <label class="form-label">Assistant</label>
+                        <textarea class="form-control" id="voiceResponse" rows="3" readonly></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

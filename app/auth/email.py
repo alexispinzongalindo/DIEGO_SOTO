@@ -13,6 +13,18 @@ def send_email(subject, sender, recipients, text_body, html_body):
     msg.html = html_body
     Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
 
+
+def send_email_with_attachments(subject, sender, recipients, text_body, html_body, attachments):
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.body = text_body
+    msg.html = html_body
+
+    for attachment in attachments or []:
+        filename, content_type, data = attachment
+        msg.attach(filename, content_type, data)
+
+    Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
+
 def send_password_reset_email(user):
     token = user.get_reset_password_token()
     send_email(

@@ -102,6 +102,7 @@ class InvoiceItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'))
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    product = db.relationship('Product')
     description = db.Column(db.String(200))
     quantity = db.Column(db.Numeric(10, 2))
     unit_price = db.Column(db.Numeric(10, 2))
@@ -164,6 +165,33 @@ class VendorPayment(db.Model):
     payment_method = db.Column(db.String(50))
     reference = db.Column(db.String(50))
     notes = db.Column(db.Text)
+
+
+class Meeting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), index=True)
+    start_at = db.Column(db.DateTime, index=True)
+    end_at = db.Column(db.DateTime, index=True)
+    location = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    reminder_minutes = db.Column(db.Integer, default=60)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by = db.relationship('User')
+
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    user = db.relationship('User')
+    type = db.Column(db.String(50), index=True)
+    title = db.Column(db.String(200))
+    body = db.Column(db.Text)
+    link = db.Column(db.String(255))
+    severity = db.Column(db.String(20), default='info')
+    ref_type = db.Column(db.String(50), index=True)
+    ref_id = db.Column(db.Integer, index=True)
+    created_at = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    read_at = db.Column(db.DateTime, index=True)
 
 @login_manager.user_loader
 def load_user(id):

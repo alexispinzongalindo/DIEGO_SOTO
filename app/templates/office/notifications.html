@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Notifications</h3>
+        <div class="text-muted">In-app alerts</div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Title</th>
+                        <th>Message</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for n in notifications %}
+                    <tr>
+                        <td>
+                            {% if n.link %}
+                                <a class="text-decoration-none" href="{{ n.link }}">{{ n.title }}</a>
+                            {% else %}
+                                {{ n.title }}
+                            {% endif %}
+                        </td>
+                        <td>{{ n.body or '' }}</td>
+                        <td>{{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}</td>
+                        <td>
+                            {% if n.read_at %}
+                                <span class="badge bg-secondary">Read</span>
+                            {% else %}
+                                <span class="badge bg-primary">Unread</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if not n.read_at %}
+                            <form method="post" action="{{ url_for('office.mark_notification_read', id=n.id) }}">
+                                <button class="btn btn-sm btn-outline-secondary" type="submit">Mark read</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4">
+                            <div class="text-muted">No notifications</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

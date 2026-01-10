@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Create Meeting{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Create Meeting</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('office.meetings') }}">Back</a>
+            </div>
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (' is-invalid' if form.title.errors else '')) }}
+                        {% for error in form.title.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.start_at.label(class="form-label") }}
+                            {{ form.start_at(class="form-control" + (' is-invalid' if form.start_at.errors else '')) }}
+                            {% for error in form.start_at.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.end_at.label(class="form-label") }}
+                            {{ form.end_at(class="form-control" + (' is-invalid' if form.end_at.errors else '')) }}
+                            {% for error in form.end_at.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.location.label(class="form-label") }}
+                            {{ form.location(class="form-control" + (' is-invalid' if form.location.errors else '')) }}
+                            {% for error in form.location.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.reminder_minutes.label(class="form-label") }}
+                            {{ form.reminder_minutes(class="form-control" + (' is-invalid' if form.reminder_minutes.errors else '')) }}
+                            {% for error in form.reminder_minutes.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4) }}
+                        {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('office.meetings') }}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

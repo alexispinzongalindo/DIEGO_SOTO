@@ -32,6 +32,9 @@ def create_app(config_class=Config):
     from app.reports import bp as reports_bp
     app.register_blueprint(reports_bp, url_prefix='/reports')
 
+    from app.office import bp as office_bp
+    app.register_blueprint(office_bp, url_prefix='/office')
+
     with app.app_context():
         db.create_all()
 

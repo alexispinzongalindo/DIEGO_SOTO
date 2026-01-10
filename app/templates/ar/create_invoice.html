@@ -57,17 +57,63 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            {{ form.subtotal.label(class="form-label") }}
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                {{ form.subtotal(class="form-control" + (' is-invalid' if form.subtotal.errors else '')) }}
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="fw-semibold">Invoice Items</div>
+                                <div class="text-muted small">Leave unused rows blank</div>
                             </div>
-                            {% for error in form.subtotal.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
                         </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="min-width: 220px;">Product</th>
+                                            <th>Description</th>
+                                            <th style="width: 120px;" class="text-end">Qty</th>
+                                            <th style="width: 170px;" class="text-end">Unit Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in form.items %}
+                                        <tr>
+                                            <td>
+                                                {{ item.product_id(class="form-select" + (' is-invalid' if item.product_id.errors else '')) }}
+                                                {% for error in item.product_id.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {{ item.description(class="form-control" + (' is-invalid' if item.description.errors else ''), placeholder="Description") }}
+                                                {% for error in item.description.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {{ item.quantity(class="form-control text-end" + (' is-invalid' if item.quantity.errors else ''), placeholder="0") }}
+                                                {% for error in item.quantity.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    {{ item.unit_price(class="form-control text-end" + (' is-invalid' if item.unit_price.errors else ''), placeholder="0.00") }}
+                                                </div>
+                                                {% for error in item.unit_price.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-4 mb-3">
                             {{ form.tax.label(class="form-label") }}
                             <div class="input-group">
@@ -77,16 +123,7 @@
                             {% for error in form.tax.errors %}
                             <div class="invalid-feedback d-block">{{ error }}</div>
                             {% endfor %}
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            {{ form.total.label(class="form-label") }}
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                {{ form.total(class="form-control" + (' is-invalid' if form.total.errors else ''), placeholder="Leave blank to auto-calculate") }}
-                            </div>
-                            {% for error in form.total.errors %}
-                            <div class="invalid-feedback d-block">{{ error }}</div>
-                            {% endfor %}
+                            <div class="form-text">Subtotal and total are calculated from invoice items.</div>
                         </div>
                     </div>
 

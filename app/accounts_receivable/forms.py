@@ -1,5 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SubmitField, SelectField
+from wtforms import StringField, TextAreaField, SubmitField, SelectField, FormField, FieldList
+from wtforms.form import Form
 from wtforms.fields import DateField, DecimalField
 from wtforms.validators import DataRequired, Optional, Length, Email, NumberRange
 
@@ -14,17 +15,31 @@ class CustomerForm(FlaskForm):
     submit = SubmitField('Save Customer')
 
 
+class InvoiceItemForm(Form):
+    product_id = SelectField('Product', coerce=int, validators=[Optional()])
+    description = StringField('Description', validators=[Optional(), Length(max=200)])
+    quantity = DecimalField('Qty', validators=[Optional(), NumberRange(min=0.01)], places=2)
+    unit_price = DecimalField('Unit Price', validators=[Optional(), NumberRange(min=0)], places=2)
+
+
 class InvoiceForm(FlaskForm):
     number = StringField('Invoice #', validators=[DataRequired(), Length(max=20)])
     date = DateField('Invoice Date', validators=[DataRequired()])
     due_date = DateField('Due Date', validators=[Optional()])
     customer_id = SelectField('Customer', coerce=int, validators=[DataRequired()])
-    subtotal = DecimalField('Subtotal', validators=[Optional(), NumberRange(min=0)], places=2)
+
     tax = DecimalField('Tax', validators=[Optional(), NumberRange(min=0)], places=2)
-    total = DecimalField('Total', validators=[Optional(), NumberRange(min=0)], places=2)
     terms = StringField('Terms', validators=[Optional(), Length(max=50)])
     notes = TextAreaField('Notes', validators=[Optional()])
+
+    items = FieldList(FormField(InvoiceItemForm), min_entries=10, max_entries=30)
     submit = SubmitField('Create Invoice')
+
+
+class EmailInvoiceForm(FlaskForm):
+    to_email = StringField('To', validators=[DataRequired(), Email(), Length(max=120)])
+    message = TextAreaField('Message', validators=[Optional()])
+    submit = SubmitField('Send Invoice')
 
 
 class PaymentForm(FlaskForm):

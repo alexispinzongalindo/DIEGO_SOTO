@@ -1,0 +1,7 @@
+Invoice {{ invoice.number }}
+Customer: {{ invoice.customer.name if invoice.customer else '' }}
+Total: ${{ "%0.2f"|format(invoice.total or 0) }}
+
+{% if message %}{{ message }}
+
+{% endif %}A PDF copy of the invoice is attached.
