@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Diego Soto & Associates{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Total Receivables</h6>
+                        <h2 class="mb-0">${{ "%0.2f"|format(total_receivables) }}</h2>
+                    </div>
+                    <i class="bi bi-currency-dollar fs-1"></i>
+                </div>
+                <div class="mt-2">
+                    <span class="small">Outstanding customer invoices</span>
+                </div>
+            </div>
+            <div class="card-footer bg-primary bg-opacity-25 border-0">
+                <a href="{{ url_for('ar.invoices') }}" class="text-white text-decoration-none">
+                    View Receivables <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">30-Day Revenue</h6>
+                        <h2 class="mb-0">${{ "%0.2f"|format(thirty_day_revenue) }}</h2>
+                    </div>
+                    <i class="bi bi-graph-up fs-1"></i>
+                </div>
+                <div class="mt-2">
+                    <span class="small">Revenue from last 30 days</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Total Payables</h6>
+                        <h2 class="mb-0">${{ "%0.2f"|format(total_payables) }}</h2>
+                    </div>
+                    <i class="bi bi-credit-card fs-1"></i>
+                </div>
+                <div class="mt-2">
+                    <span class="small">Outstanding vendor bills</span>
+                </div>
+            </div>
+            <div class="card-footer bg-warning bg-opacity-25 border-0">
+                <a href="{{ url_for('ap.bills') }}" class="text-dark text-decoration-none">
+                    View Payables <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">30-Day Profit</h6>
+                        <h2 class="mb-0">${{ "%0.2f"|format(thirty_day_profit) }}</h2>
+                    </div>
+                    <i class="bi bi-cash-stack fs-1"></i>
+                </div>
+                <div class="mt-2">
+                    <span class="small">Profit from last 30 days</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Invoices</h5>
+                <a href="{{ url_for('ar.invoices') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Customer</th>
+                                <th>Date</th>
+                                <th>Due Date</th>
+                                <th class="text-end">Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for invoice in recent_invoices %}
+                            <tr style="cursor: pointer;" onclick="window.location.href='{{ url_for('ar.view_invoice', id=invoice.id) }}';">
+                                <td>{{ invoice.number }}</td>
+                                <td>{{ invoice.customer.name|truncate(20) }}</td>
+                                <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ invoice.due_date.strftime('%Y-%m-%d') }}</td>
+                                <td class="text-end">${{ "%0.2f"|format(invoice.total) }}</td>
+                                <td>
+                                    {% if invoice.status == 'paid' %}
+                                        <span class="badge bg-success">Paid</span>
+                                    {% elif invoice.status == 'overdue' %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                    {% elif invoice.status == 'partial' %}
+                                        <span class="badge bg-warning text-dark">Partial</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Open</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">No invoices found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Bills</h5>
+                <a href="{{ url_for('ap.bills') }}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Vendor</th>
+                                <th>Date</th>
+                                <th>Due Date</th>
+                                <th class="text-end">Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bill in recent_bills %}
+                            <tr style="cursor: pointer;" onclick="window.location.href='{{ url_for('ap.view_bill', id=bill.id) }}';">
+                                <td>{{ bill.number }}</td>
+                                <td>{{ bill.vendor.name|truncate(20) }}</td>
+                                <td>{{ bill.date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ bill.due_date.strftime('%Y-%m-%d') }}</td>
+                                <td class="text-end">${{ "%0.2f"|format(bill.total) }}</td>
+                                <td>
+                                    {% if bill.status == 'paid' %}
+                                        <span class="badge bg-success">Paid</span>
+                                    {% elif bill.status == 'overdue' %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Open</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center">No bills found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('ar.create_invoice') }}" class="btn btn-outline-primary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="bi bi-file-earmark-plus fs-2 mb-2"></i>
+                            <span>New Invoice</span>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('ar.record_payment') }}" class="btn btn-outline-success w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="bi bi-cash-coin fs-2 mb-2"></i>
+                            <span>Record Payment</span>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('ap.create_bill') }}" class="btn btn-outline-warning w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="bi bi-receipt fs-2 mb-2"></i>
+                            <span>New Bill</span>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('ap.record_payment') }}" class="btn btn-outline-danger w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="bi bi-credit-card fs-2 mb-2"></i>
+                            <span>Pay Bill</span>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('ar.customers') }}" class="btn btn-outline-info w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="bi bi-people fs-2 mb-2"></i>
+                            <span>Customers</span>
+                        </a>
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('ap.vendors') }}" class="btn btn-outline-secondary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-3">
+                            <i class="bi bi-truck fs-2 mb-2"></i>
+                            <span>Vendors</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Upcoming Due Dates</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for invoice in recent_invoices if invoice.due_date >= today %}
+                    <a href="{{ url_for('ar.view_invoice', id=invoice.id) }}" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Invoice #{{ invoice.number }}</h6>
+                            <small class="text-muted">Due {{ invoice.due_date.strftime('%b %d, %Y') }}</small>
+                        </div>
+                        <p class="mb-1">{{ invoice.customer.name }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ invoice.status|title }}</small>
+                            <strong>${{ "%0.2f"|format(invoice.total) }}</strong>
+                        </div>
+                    </a>
+                    {% else %}
+                    <div class="text-center p-4">
+                        <i class="bi bi-check-circle text-success fs-1"></i>
+                        <p class="mt-2 mb-0">No upcoming due dates</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

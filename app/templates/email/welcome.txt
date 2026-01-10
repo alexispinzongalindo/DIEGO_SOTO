@@ -1,0 +1,14 @@
+Welcome to Diego Soto & Associates, {{ user.username }}!
+
+Thank you for registering with our construction specialties sales management system. You can now log in to your account and start managing your construction projects, invoices, and payments.
+
+To get started, please log in to your account at:
+{{ url_for('auth.login', _external=True) }}
+
+If you have any questions or need assistance, please don't hesitate to contact our support team at support@diego-soto.com.
+
+Best regards,
+The Diego Soto & Associates Team
+
+---
+This is an automated message, please do not reply directly to this email.

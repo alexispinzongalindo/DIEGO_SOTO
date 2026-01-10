@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Search{% endblock %}
+
+{% block content %}
+<h3 class="mb-3">Search: {{ query }}</h3>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Customers</div>
+            <div class="card-body">
+                {% for c in customers %}
+                    <div>{{ c.name }}</div>
+                {% else %}
+                    <div class="text-muted">No customers found</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Vendors</div>
+            <div class="card-body">
+                {% for v in vendors %}
+                    <div>{{ v.name }}</div>
+                {% else %}
+                    <div class="text-muted">No vendors found</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Invoices</div>
+            <div class="card-body">
+                {% for i in invoices %}
+                    <div>{{ i.number }}</div>
+                {% else %}
+                    <div class="text-muted">No invoices found</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header">Bills</div>
+            <div class="card-body">
+                {% for b in bills %}
+                    <div>{{ b.number }}</div>
+                {% else %}
+                    <div class="text-muted">No bills found</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
