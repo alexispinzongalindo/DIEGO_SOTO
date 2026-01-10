@@ -32,7 +32,7 @@ def dashboard():
         db.session.query(db.func.sum(Payment.amount))
         .filter(Payment.invoice_id == Invoice.id)
         .correlate(Invoice)
-        .as_scalar(),
+        .scalar_subquery(),
         0
     ))).scalar() or 0
     
@@ -40,7 +40,7 @@ def dashboard():
         db.session.query(db.func.sum(VendorPayment.amount))
         .filter(VendorPayment.bill_id == Bill.id)
         .correlate(Bill)
-        .as_scalar(),
+        .scalar_subquery(),
         0
     ))).scalar() or 0
     
