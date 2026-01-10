@@ -6,8 +6,14 @@ load_dotenv(os.path.join(basedir, '.env'))
 
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'you-will-never-guess'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db')
+    _database_url = os.environ.get('DATABASE_URL')
+    if _database_url and _database_url.startswith('postgresql+psycopg2://'):
+        _database_url = 'postgresql+psycopg://' + _database_url[len('postgresql+psycopg2://'):]
+    if _database_url and _database_url.startswith('postgres://'):
+        _database_url = 'postgresql+psycopg://' + _database_url[len('postgres://'):]
+    elif _database_url and _database_url.startswith('postgresql://') and '+psycopg' not in _database_url and '+psycopg2' not in _database_url:
+        _database_url = 'postgresql+psycopg://' + _database_url[len('postgresql://'):]
+    SQLALCHEMY_DATABASE_URI = _database_url or 'sqlite:///' + os.path.join(basedir, 'app.db')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Email configuration
