@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to Diego Soto & Associates</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+        }
+        .content {
+            padding: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .features {
+            margin: 25px 0;
+        }
+        .feature {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .feature-icon {
+            color: #3498db;
+            margin-right: 15px;
+            font-size: 20px;
+            min-width: 24px;
+            text-align: center;
+            padding-top: 2px;
+        }
+        .feature-text h3 {
+            margin: 0 0 5px 0;
+            color: #2c3e50;
+        }
+        .feature-text p {
+            margin: 0;
+            color: #7f8c8d;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #7f8c8d;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome to Diego Soto & Associates</h1>
+    </div>
+    
+    <div class="content">
+        <p>Hello {{ user.username }},</p>
+        
+        <p>Thank you for registering with our Construction Specialties Sales Management System. We're excited to have you on board!</p>
+        
+        <p>You can now log in to your account and start managing your construction projects, invoices, and payments with ease.</p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{{ url_for('auth.login', _external=True) }}" class="button">
+                Get Started
+            </a>
+        </div>
+        
+        <div class="features">
+            <h2 style="color: #2c3e50; font-size: 20px; margin-bottom: 15px;">What you can do:</h2>
+            
+            <div class="feature">
+                <div class="feature-icon">📊</div>
+                <div class="feature-text">
+                    <h3>Track Projects</h3>
+                    <p>Manage all your construction projects in one place with real-time updates.</p>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">🧾</div>
+                <div class="feature-text">
+                    <h3>Create Invoices</h3>
+                    <p>Generate professional invoices and send them to your clients in minutes.</p>
+                </div>
+            </div>
+            
+            <div class="feature">
+                <div class="feature-icon">📈</div>
+                <div class="feature-text">
+                    <h3>View Reports</h3>
+                    <p>Get insights into your business with comprehensive financial reports.</p>
+                </div>
+            </div>
+        </div>
+        
+        <p>If you have any questions or need assistance, please don't hesitate to contact our support team at <a href="mailto:support@diego-soto.com">support@diego-soto.com</a>.</p>
+        
+        <p>Best regards,<br>The Diego Soto & Associates Team</p>
+    </div>
+    
+    <div class="footer">
+        <p>© 2023 Diego Soto & Associates. All rights reserved.</p>
+        <p>This is an automated message, please do not reply directly to this email.</p>
+    </div>
+</body>
+</html>
