@@ -1,4 +1,4 @@
-from flask import render_template, flash, redirect, url_for, request
+from flask import render_template, flash, redirect, url_for, request, current_app, abort
 from flask_login import login_user, logout_user, current_user, login_required
 from urllib.parse import urlparse
 from app import db
@@ -37,6 +37,8 @@ def logout():
 
 @bp.route('/register', methods=['GET', 'POST'])
 def register():
+    if not current_app.config.get('ENABLE_REGISTRATION'):
+        abort(404)
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     

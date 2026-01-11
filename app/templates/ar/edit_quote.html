@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Edit Quote{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Edit Quote {{ quote.number }}</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ar.view_quote', id=quote.id) }}">Back</a>
+            </div>
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="text-muted small">Quote #</div>
+                            <div class="fw-semibold">{{ quote.number }}</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.date.label(class="form-label") }}
+                            {{ form.date(class="form-control" + (' is-invalid' if form.date.errors else '')) }}
+                            {% for error in form.date.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.valid_until.label(class="form-label") }}
+                            {{ form.valid_until(class="form-control" + (' is-invalid' if form.valid_until.errors else '')) }}
+                            {% for error in form.valid_until.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.customer_id.label(class="form-label") }}
+                            {{ form.customer_id(class="form-select" + (' is-invalid' if form.customer_id.errors else '')) }}
+                            {% for error in form.customer_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">
+                                Need a new customer?
+                                <a href="{{ url_for('ar.create_customer') }}">Create one</a>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            {{ form.status.label(class="form-label") }}
+                            {{ form.status(class="form-select" + (' is-invalid' if form.status.errors else '')) }}
+                            {% for error in form.status.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            {{ form.terms.label(class="form-label") }}
+                            {{ form.terms(class="form-control" + (' is-invalid' if form.terms.errors else ''), placeholder="Net 30") }}
+                            {% for error in form.terms.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="fw-semibold">Quote Items</div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <a class="text-decoration-none small" href="{{ url_for('ar.create_item', next=url_for('ar.edit_quote', id=quote.id)) }}">Create Item</a>
+                                    <div class="text-muted small">Leave unused rows blank</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="min-width: 220px;">Item</th>
+                                            <th>Description</th>
+                                            <th style="width: 120px;" class="text-end">Qty</th>
+                                            <th style="width: 170px;" class="text-end">Unit Price</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in form.items %}
+                                        <tr>
+                                            <td>
+                                                {{ item.form.product_id(class="form-select" + (' is-invalid' if item.form.product_id.errors else '')) }}
+                                                {% for error in item.form.product_id.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {{ item.form.description(class="form-control" + (' is-invalid' if item.form.description.errors else ''), placeholder="Description") }}
+                                                {% for error in item.form.description.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {{ item.form.quantity(class="form-control text-end" + (' is-invalid' if item.form.quantity.errors else ''), placeholder="0") }}
+                                                {% for error in item.form.quantity.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                <div class="input-group">
+                                                    <span class="input-group-text">$</span>
+                                                    {{ item.form.unit_price(class="form-control text-end" + (' is-invalid' if item.form.unit_price.errors else ''), placeholder="0.00") }}
+                                                </div>
+                                                {% for error in item.form.unit_price.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.tax.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.tax(class="form-control" + (' is-invalid' if form.tax.errors else '')) }}
+                            </div>
+                            {% for error in form.tax.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">Subtotal and total are calculated from quote items.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.notes.label(class="form-label") }}
+                        {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes") }}
+                        {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('ar.view_quote', id=quote.id) }}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

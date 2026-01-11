@@ -1,14 +1,16 @@
 from datetime import datetime, timedelta
 import os
 
-from flask import render_template, redirect, url_for, flash, request, jsonify, current_app
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_file
 from flask_login import login_required, current_user
 
 from app import db
-from app.models import Meeting, Notification, Invoice
+from app.auth.email import send_email_with_attachments_sync
+from app.models import Meeting, Notification, Invoice, User, Project, LibraryDocument
 from app.office import bp
-from app.office.forms import MeetingForm
+from app.office.forms import MeetingForm, ProjectForm, LibraryDocumentForm, EmailLibraryDocumentForm, DeleteForm
 from app.office.ai_assistant import run_assistant
+from app.office.library_storage import save_uploaded_file, get_document_abs_path, delete_document_file
 
 
 @bp.app_context_processor
@@ -96,6 +98,263 @@ def meetings():
     now = datetime.utcnow()
     meeting_list = Meeting.query.order_by(Meeting.start_at.asc()).all()
     return render_template('office/meetings.html', title='Agenda', meetings=meeting_list, now=now)
+
+
+def _can_edit_document(doc: LibraryDocument) -> bool:
+    if not current_user.is_authenticated:
+        return False
+    if getattr(current_user, 'is_admin', False):
+        return True
+    return doc.owner_id == current_user.id
+
+
+@bp.route('/library')
+@login_required
+def library():
+    owner_id = request.args.get('owner_id', type=int)
+    category = (request.args.get('category') or '').strip().lower() or None
+    project_id = request.args.get('project_id', type=int)
+
+    q = LibraryDocument.query
+    if owner_id:
+        q = q.filter(LibraryDocument.owner_id == owner_id)
+    if category in ('project', 'personal'):
+        q = q.filter(LibraryDocument.category == category)
+    if project_id:
+        q = q.filter(LibraryDocument.project_id == project_id)
+
+    documents = q.order_by(LibraryDocument.created_at.desc()).limit(200).all()
+
+    owners = User.query.order_by(User.username.asc()).all()
+    projects = Project.query.filter_by(active=True).order_by(Project.name.asc()).all()
+
+    return render_template(
+        'office/library.html',
+        title='Document Library',
+        documents=documents,
+        owners=owners,
+        projects=projects,
+        selected_owner_id=owner_id,
+        selected_category=category,
+        selected_project_id=project_id,
+    )
+
+
+@bp.route('/library/projects')
+@login_required
+def library_projects():
+    projects = Project.query.order_by(Project.name.asc()).all()
+    return render_template('office/library_projects.html', title='Projects', projects=projects)
+
+
+@bp.route('/library/project/create', methods=['GET', 'POST'])
+@login_required
+def create_library_project():
+    if not getattr(current_user, 'is_admin', False):
+        flash('Admin access required.', 'warning')
+        return redirect(url_for('office.library_projects'))
+
+    form = ProjectForm()
+    if form.validate_on_submit():
+        name = (form.name.data or '').strip()
+        exists = Project.query.filter(Project.name.ilike(name)).first()
+        if exists:
+            flash('Project already exists.', 'warning')
+            return render_template('office/create_library_project.html', title='Create Project', form=form)
+        project = Project(name=name, active=True)
+        db.session.add(project)
+        db.session.commit()
+        flash('Project created.', 'success')
+        return redirect(url_for('office.library_projects'))
+
+    return render_template('office/create_library_project.html', title='Create Project', form=form)
+
+
+@bp.route('/library/upload', methods=['GET', 'POST'])
+@login_required
+def upload_library_document():
+    owners = User.query.order_by(User.username.asc()).all()
+    projects = Project.query.filter_by(active=True).order_by(Project.name.asc()).all()
+
+    form = LibraryDocumentForm()
+    form.owner_id.choices = [(u.id, u.username) for u in owners]
+    form.project_id.choices = [(0, '-- None --')] + [(p.id, p.name) for p in projects]
+
+    if request.method == 'GET':
+        form.owner_id.data = current_user.id
+        form.category.data = 'personal'
+
+    if form.validate_on_submit():
+        file = request.files.get('file')
+        if not file or not file.filename:
+            flash('Please choose a file.', 'danger')
+            return render_template('office/upload_library_document.html', title='Upload Document', form=form)
+
+        try:
+            saved = save_uploaded_file(file)
+        except Exception as e:
+            flash(str(e) or 'Unable to save file.', 'danger')
+            return render_template('office/upload_library_document.html', title='Upload Document', form=form)
+
+        project_id = form.project_id.data or 0
+        if project_id == 0:
+            project_id = None
+        if form.category.data == 'project' and not project_id:
+            flash('Select a project for Project category.', 'danger')
+            delete_document_file(saved.get('stored_filename'))
+            return render_template('office/upload_library_document.html', title='Upload Document', form=form)
+
+        doc = LibraryDocument(
+            owner_id=form.owner_id.data,
+            category=form.category.data,
+            project_id=project_id,
+            title=form.title.data,
+            description=form.description.data,
+            original_filename=saved.get('original_filename'),
+            stored_filename=saved.get('stored_filename'),
+            content_type=saved.get('content_type'),
+            size_bytes=saved.get('size_bytes'),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+        db.session.add(doc)
+        db.session.commit()
+        flash('Document uploaded.', 'success')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+
+    return render_template('office/upload_library_document.html', title='Upload Document', form=form)
+
+
+@bp.route('/library/document/<int:id>')
+@login_required
+def view_library_document(id):
+    doc = LibraryDocument.query.get_or_404(id)
+    delete_form = DeleteForm()
+    return render_template(
+        'office/view_library_document.html',
+        title=f'Document {doc.title}',
+        doc=doc,
+        can_edit=_can_edit_document(doc),
+        delete_form=delete_form,
+    )
+
+
+@bp.route('/library/document/<int:id>/download')
+@login_required
+def download_library_document(id):
+    doc = LibraryDocument.query.get_or_404(id)
+    abs_path = get_document_abs_path(doc.stored_filename)
+    if not os.path.exists(abs_path):
+        flash('File not found on server.', 'danger')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+    return send_file(abs_path, as_attachment=True, download_name=(doc.original_filename or 'document'))
+
+
+@bp.route('/library/document/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_library_document(id):
+    doc = LibraryDocument.query.get_or_404(id)
+    if not _can_edit_document(doc):
+        flash('You do not have permission to edit this document.', 'warning')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+
+    owners = User.query.order_by(User.username.asc()).all()
+    projects = Project.query.filter_by(active=True).order_by(Project.name.asc()).all()
+
+    form = LibraryDocumentForm(obj=doc)
+    form.submit.label.text = 'Save Changes'
+    form.owner_id.choices = [(u.id, u.username) for u in owners]
+    form.project_id.choices = [(0, '-- None --')] + [(p.id, p.name) for p in projects]
+
+    if request.method == 'GET':
+        form.owner_id.data = doc.owner_id
+        form.category.data = doc.category
+        form.project_id.data = doc.project_id or 0
+
+    if form.validate_on_submit():
+        project_id = form.project_id.data or 0
+        if project_id == 0:
+            project_id = None
+        if form.category.data == 'project' and not project_id:
+            flash('Select a project for Project category.', 'danger')
+            return render_template('office/edit_library_document.html', title=f'Edit {doc.title}', form=form, doc=doc)
+
+        doc.owner_id = form.owner_id.data
+        doc.category = form.category.data
+        doc.project_id = project_id
+        doc.title = form.title.data
+        doc.description = form.description.data
+        doc.updated_at = datetime.utcnow()
+        db.session.commit()
+        flash('Document updated.', 'success')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+
+    return render_template('office/edit_library_document.html', title=f'Edit {doc.title}', form=form, doc=doc)
+
+
+@bp.route('/library/document/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_library_document(id):
+    doc = LibraryDocument.query.get_or_404(id)
+    if not _can_edit_document(doc):
+        flash('You do not have permission to delete this document.', 'warning')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash('Unable to delete document.', 'danger')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+
+    delete_document_file(doc.stored_filename)
+    db.session.delete(doc)
+    db.session.commit()
+    flash('Document deleted.', 'success')
+    return redirect(url_for('office.library'))
+
+
+@bp.route('/library/document/<int:id>/email', methods=['GET', 'POST'])
+@login_required
+def email_library_document(id):
+    doc = LibraryDocument.query.get_or_404(id)
+    form = EmailLibraryDocumentForm()
+
+    if form.validate_on_submit():
+        abs_path = get_document_abs_path(doc.stored_filename)
+        if not os.path.exists(abs_path):
+            flash('File not found on server.', 'danger')
+            return redirect(url_for('office.view_library_document', id=doc.id))
+
+        try:
+            with open(abs_path, 'rb') as f:
+                data = f.read()
+        except Exception:
+            flash('Unable to read file for email.', 'danger')
+            return redirect(url_for('office.view_library_document', id=doc.id))
+
+        subject = f"Document: {doc.title}"
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('ADMINS')[0]
+        recipients = [form.to_email.data]
+        msg = (form.message.data or '').strip()
+        text_body = (msg + "\n\n") if msg else ''
+        text_body += f"Attached: {doc.original_filename or doc.title}"
+
+        try:
+            send_email_with_attachments_sync(
+                subject=subject,
+                sender=sender,
+                recipients=recipients,
+                text_body=text_body,
+                html_body=f"<p>{text_body}</p>",
+                attachments=[(doc.original_filename or 'document', doc.content_type or 'application/octet-stream', data)],
+            )
+        except Exception as e:
+            flash(str(e) or 'Email send failed.', 'danger')
+            return render_template('office/email_library_document.html', title=f'Email {doc.title}', form=form, doc=doc)
+
+        flash('Email sent.', 'success')
+        return redirect(url_for('office.view_library_document', id=doc.id))
+
+    return render_template('office/email_library_document.html', title=f'Email {doc.title}', form=form, doc=doc)
 
 
 @bp.route('/agenda/owner-questions/create', methods=['POST'])

@@ -3,3 +3,16 @@ __pycache__/
 .pytest_cache/
 
 .env
+
+.DS_Store
+
+# Virtual environments
+.venv/
+.venv*/
+venv/
+ENV/
+
+# Local databases
+app.db
+*.sqlite
+*.sqlite3

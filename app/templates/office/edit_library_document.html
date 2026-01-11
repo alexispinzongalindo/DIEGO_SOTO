@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Edit Document{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Edit Document</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('office.view_library_document', id=doc.id) }}">Back</a>
+            </div>
+            <div class="card-body">
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.owner_id.label(class="form-label") }}
+                            {{ form.owner_id(class="form-select" + (' is-invalid' if form.owner_id.errors else '')) }}
+                            {% for error in form.owner_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.category.label(class="form-label") }}
+                            {{ form.category(class="form-select" + (' is-invalid' if form.category.errors else '')) }}
+                            {% for error in form.category.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.project_id.label(class="form-label") }}
+                            {{ form.project_id(class="form-select" + (' is-invalid' if form.project_id.errors else '')) }}
+                            {% for error in form.project_id.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (' is-invalid' if form.title.errors else '')) }}
+                        {% for error in form.title.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (' is-invalid' if form.description.errors else ''), rows=4) }}
+                        {% for error in form.description.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('office.view_library_document', id=doc.id) }}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

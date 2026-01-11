@@ -11,6 +11,12 @@
                     <h2 class="fw-bold">Sign In</h2>
                     <p class="text-muted">Access your account to continue</p>
                 </div>
+
+                <div class="alert alert-danger text-center" role="alert" style="border-width: 3px;">
+                    <div class="fw-bold">LOGIN CREDENTIALS</div>
+                    <div><span class="fw-bold">Username:</span> <span class="text-danger fw-bold">admin</span></div>
+                    <div><span class="fw-bold">Password:</span> <span class="text-danger fw-bold">admin123</span></div>
+                </div>
                 
                 <form action="" method="post" novalidate>
                     {{ form.hidden_tag() }}
@@ -45,7 +51,9 @@
                 </form>
                 
                 <div class="text-center mt-4">
+                    {% if config.get('ENABLE_REGISTRATION') %}
                     <p class="mb-0">Don't have an account? <a href="{{ url_for('auth.register') }}">Sign up</a></p>
+                    {% endif %}
                 </div>
             </div>
         </div>

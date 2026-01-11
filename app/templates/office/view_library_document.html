@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Document{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">{{ doc.title }}</h3>
+        <div class="text-muted">{{ doc.owner.username if doc.owner else '' }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('office.library') }}">Back</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('office.download_library_document', id=doc.id) }}"><i class="bi bi-download"></i> Download</a>
+        <a class="btn btn-outline-success" href="{{ url_for('office.email_library_document', id=doc.id) }}"><i class="bi bi-envelope"></i> Email</a>
+        {% if can_edit %}
+            <a class="btn btn-outline-secondary" href="{{ url_for('office.edit_library_document', id=doc.id) }}"><i class="bi bi-pencil"></i> Edit</a>
+            <form action="{{ url_for('office.delete_library_document', id=doc.id) }}" method="post" class="d-inline">
+                {{ delete_form.hidden_tag() }}
+                <button class="btn btn-outline-danger" type="submit" onclick="return confirm('Delete this document?');"><i class="bi bi-trash"></i> Delete</button>
+            </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Category</div>
+                <div class="fw-semibold">{{ doc.category|title }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Project</div>
+                <div class="fw-semibold">{{ doc.project.name if doc.project else '' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">File</div>
+                <div class="fw-semibold">{{ doc.original_filename or '' }}</div>
+                <div class="text-muted small">{{ (doc.size_bytes or 0) // 1024 }} KB</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mt-3">
+    <div class="card-header">
+        <h5 class="mb-0">Description</h5>
+    </div>
+    <div class="card-body">
+        {{ doc.description or '' }}
+    </div>
+</div>
+{% endblock %}

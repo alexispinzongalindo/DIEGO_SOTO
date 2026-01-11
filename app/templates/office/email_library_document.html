@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Email Document{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Email Document</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('office.view_library_document', id=doc.id) }}">Back</a>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="text-muted small">Document</div>
+                    <div class="fw-semibold">{{ doc.title }}</div>
+                    <div class="text-muted small">{{ doc.original_filename or '' }}</div>
+                </div>
+
+                <form action="" method="post" novalidate>
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        {{ form.to_email.label(class="form-label") }}
+                        {{ form.to_email(class="form-control" + (' is-invalid' if form.to_email.errors else '')) }}
+                        {% for error in form.to_email.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.message.label(class="form-label") }}
+                        {{ form.message(class="form-control" + (' is-invalid' if form.message.errors else ''), rows=4, placeholder="Optional message") }}
+                        {% for error in form.message.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('office.view_library_document', id=doc.id) }}">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

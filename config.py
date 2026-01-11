@@ -2,8 +2,8 @@ import os
 from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '.env'), override=True)
-load_dotenv(os.path.join(basedir, 'app', '.env'), override=True)
+load_dotenv(os.path.join(basedir, '.env'), override=False)
+load_dotenv(os.path.join(basedir, 'app', '.env'), override=False)
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -52,6 +52,19 @@ class Config:
     # File upload configuration
     UPLOAD_FOLDER = os.path.join(basedir, 'app/static/uploads')
     ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'gif'}
+    DOCUMENT_LIBRARY_FOLDER = os.path.join(UPLOAD_FOLDER, 'library')
+    DOCUMENT_LIBRARY_ALLOWED_EXTENSIONS = {
+        'pdf',
+        'png', 'jpg', 'jpeg', 'gif',
+        'heic',
+        'mp4', 'mov',
+        'doc', 'docx',
+        'xls', 'xlsx',
+        'ppt', 'pptx',
+        'txt',
+        'zip',
+    }
+    MAX_CONTENT_LENGTH = int(os.environ.get('MAX_CONTENT_LENGTH') or 250) * 1024 * 1024
     
     # Report configuration
     REPORTS_FOLDER = os.path.join(basedir, 'app/static/reports')
@@ -61,3 +74,9 @@ class Config:
     OPENAI_MODEL = (os.environ.get('OPENAI_MODEL') or 'gpt-4o-mini').strip()
     OPENAI_TIMEOUT = int(os.environ.get('OPENAI_TIMEOUT') or 15)
     OPENAI_MAX_TOKENS = int(os.environ.get('OPENAI_MAX_TOKENS') or 250)
+
+    ENABLE_REGISTRATION = _env_bool('ENABLE_REGISTRATION', default=False)
+
+    OWNER_USERNAME = (os.environ.get('OWNER_USERNAME') or '').strip() or None
+    OWNER_EMAIL = (os.environ.get('OWNER_EMAIL') or '').strip() or None
+    OWNER_PASSWORD = (os.environ.get('OWNER_PASSWORD') or '').strip() or None

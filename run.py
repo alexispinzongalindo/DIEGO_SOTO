@@ -2,22 +2,41 @@ from app import create_app, db
 from app.models import User
 import os
 
-def create_admin_user():
-    admin = User.query.filter_by(username='admin').first()
-    if admin is None:
-        admin = User(username='admin', email='admin@example.com', is_admin=True)
-        admin.set_password('admin123')
-        db.session.add(admin)
+def ensure_owner_user():
+    owner_username = (os.environ.get('OWNER_USERNAME') or '').strip() or 'admin'
+    owner_email = (os.environ.get('OWNER_EMAIL') or '').strip() or 'admin@example.com'
+    owner_password = (os.environ.get('OWNER_PASSWORD') or '').strip() or 'admin123'
+
+    user = User.query.filter_by(username=owner_username).first()
+    if user is None:
+        user = User(username=owner_username, email=owner_email, is_admin=True)
+        user.set_password(owner_password)
+        db.session.add(user)
         db.session.commit()
-        print("Admin user created!")
+        print("Owner user created!")
+        return
+
+    changed = False
+    if (user.email or '') != owner_email:
+        user.email = owner_email
+        changed = True
+    if not user.is_admin:
+        user.is_admin = True
+        changed = True
+    if owner_password and not user.check_password(owner_password):
+        user.set_password(owner_password)
+        changed = True
+    if changed:
+        db.session.commit()
+        print("Owner user updated!")
     else:
-        print("Admin user already exists.")
+        print("Owner user already exists.")
 
 app = create_app()
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        create_admin_user()
+        ensure_owner_user()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)

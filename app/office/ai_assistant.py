@@ -9,7 +9,9 @@ from dateutil import parser
 from flask import current_app, url_for
 
 from app import db
-from app.models import Invoice, Meeting, User
+from app.auth.email import send_email_with_attachments_sync
+from app.models import Bill, Customer, Invoice, LibraryDocument, Meeting, Notification, Project, Quote, User
+from app.office.library_storage import get_document_abs_path
 
 
 def _utc_now() -> datetime:
@@ -18,6 +20,33 @@ def _utc_now() -> datetime:
 
 def _is_es(lang: str) -> bool:
     return (lang or '').strip().lower().startswith('es')
+
+
+def _extract_customer_name_for_balance(text: str, lang: str) -> Optional[str]:
+    raw = (text or '').strip()
+    if not raw:
+        return None
+    lower = raw.lower()
+    markers = [
+        'balance de ',
+        'balance del ',
+        'saldo de ',
+        'saldo del ',
+        "customer balance ",
+        "balance for ",
+    ]
+    for m in markers:
+        idx = lower.find(m)
+        if idx >= 0:
+            name = raw[idx + len(m):].strip()
+            for trailing in ['?', '.', '!', ',']:
+                if name.endswith(trailing):
+                    name = name[:-1].strip()
+            return name or None
+    if _is_es(lang) and 'balance' in lower:
+        name = raw.replace('balance', '').replace('Balance', '').strip(' :,-')
+        return name or None
+    return None
 
 
 def _tool_meetings_today(lang: str) -> Dict[str, Any]:
@@ -159,6 +188,285 @@ def _tool_create_meeting(args: Dict[str, Any], user: User, lang: str) -> Dict[st
     }
 
 
+def _tool_list_customers(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    limit = args.get('limit')
+    try:
+        limit_int = int(limit) if limit is not None else 10
+    except Exception:
+        limit_int = 10
+    limit_int = max(1, min(limit_int, 25))
+
+    customers = Customer.query.order_by(Customer.name.asc()).limit(limit_int).all()
+    if not customers:
+        return {'speak': 'No hay clientes.' if _is_es(lang) else 'There are no customers.'}
+
+    parts = [c.name for c in customers if c.name]
+    speak = ('Clientes: ' if _is_es(lang) else 'Customers: ') + ', '.join(parts)
+    return {'speak': speak, 'redirect_url': url_for('ar.customers')}
+
+
+def _tool_customer_balance(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    name = (args.get('customer_name') or '').strip()
+    if not name:
+        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
+
+    customer = (
+        Customer.query.filter(Customer.name.ilike(f"%{name}%"))
+        .order_by(Customer.name.asc())
+        .first()
+    )
+    if not customer:
+        return {'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.", 'redirect_url': url_for('ar.customers')}
+
+    invoices = Invoice.query.filter_by(customer_id=customer.id).order_by(Invoice.date.desc()).limit(500).all()
+    open_invoices = [inv for inv in invoices if (inv.balance or 0.0) > 0.01]
+    open_balance = float(sum((inv.balance or 0.0) for inv in open_invoices))
+
+    if _is_es(lang):
+        speak = f"El balance abierto de {customer.name} es ${open_balance:,.2f} en {len(open_invoices)} facturas."
+    else:
+        speak = f"{customer.name}'s open balance is ${open_balance:,.2f} across {len(open_invoices)} invoices."
+
+    return {'speak': speak, 'redirect_url': url_for('ar.customers')}
+
+
+def _tool_list_open_invoices(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    limit = args.get('limit')
+    try:
+        limit_int = int(limit) if limit is not None else 10
+    except Exception:
+        limit_int = 10
+    limit_int = max(1, min(limit_int, 25))
+
+    invoices = Invoice.query.order_by(Invoice.date.desc()).limit(200).all()
+    open_invoices = [inv for inv in invoices if (inv.balance or 0.0) > 0.01]
+    open_invoices = open_invoices[:limit_int]
+
+    if not open_invoices:
+        return {'speak': 'No hay facturas abiertas.' if _is_es(lang) else 'There are no open invoices.', 'redirect_url': url_for('ar.invoices')}
+
+    parts = []
+    for inv in open_invoices:
+        num = inv.number or f"#{inv.id}"
+        cust = getattr(inv.customer, 'name', None) if getattr(inv, 'customer', None) else None
+        bal = float(inv.balance or 0.0)
+        if cust:
+            parts.append(f"{num} ({cust}) balance ${bal:,.2f}")
+        else:
+            parts.append(f"{num} balance ${bal:,.2f}")
+
+    speak = ('Facturas abiertas: ' if _is_es(lang) else 'Open invoices: ') + '; '.join(parts)
+    return {'speak': speak, 'redirect_url': url_for('ar.invoices')}
+
+
+def _tool_invoice_summary(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    invoice = None
+    if number_or_id.isdigit():
+        invoice = Invoice.query.get(int(number_or_id))
+    if invoice is None and number_or_id:
+        invoice = Invoice.query.filter_by(number=number_or_id).first()
+
+    if invoice is None:
+        return {'speak': 'No encontré esa factura.' if _is_es(lang) else "I couldn't find that invoice.", 'redirect_url': url_for('ar.invoices')}
+
+    num = invoice.number or f"#{invoice.id}"
+    total = float(invoice.total or 0.0)
+    bal = float(invoice.balance or 0.0)
+    status = invoice.status or 'open'
+    cust = getattr(invoice.customer, 'name', None) if getattr(invoice, 'customer', None) else None
+
+    if _is_es(lang):
+        speak = f"Factura {num}" + (f" de {cust}" if cust else '') + f": total ${total:,.2f}, saldo ${bal:,.2f}, estado {status}."
+    else:
+        speak = f"Invoice {num}" + (f" for {cust}" if cust else '') + f": total ${total:,.2f}, balance ${bal:,.2f}, status {status}."
+    return {'speak': speak, 'redirect_url': url_for('ar.invoices')}
+
+
+def _tool_list_quotes(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    limit = args.get('limit')
+    try:
+        limit_int = int(limit) if limit is not None else 10
+    except Exception:
+        limit_int = 10
+    limit_int = max(1, min(limit_int, 25))
+
+    quotes = Quote.query.order_by(Quote.date.desc()).limit(limit_int).all()
+    if not quotes:
+        return {'speak': 'No hay cotizaciones.' if _is_es(lang) else 'There are no quotes.', 'redirect_url': url_for('ar.quotes')}
+
+    parts = []
+    for q in quotes:
+        num = q.number or f"#{q.id}"
+        cust = getattr(q.customer, 'name', None) if getattr(q, 'customer', None) else None
+        total = float(q.total or 0.0)
+        st = q.status or 'draft'
+        if cust:
+            parts.append(f"{num} ({cust}) ${total:,.2f} {st}")
+        else:
+            parts.append(f"{num} ${total:,.2f} {st}")
+
+    speak = ('Cotizaciones: ' if _is_es(lang) else 'Quotes: ') + '; '.join(parts)
+    return {'speak': speak, 'redirect_url': url_for('ar.quotes')}
+
+
+def _tool_list_bills(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    limit = args.get('limit')
+    try:
+        limit_int = int(limit) if limit is not None else 10
+    except Exception:
+        limit_int = 10
+    limit_int = max(1, min(limit_int, 25))
+
+    bills = Bill.query.order_by(Bill.date.desc()).limit(limit_int).all()
+    if not bills:
+        return {'speak': 'No hay cuentas por pagar.' if _is_es(lang) else 'There are no bills.', 'redirect_url': url_for('ap.bills')}
+
+    parts = []
+    for b in bills:
+        num = b.number or f"#{b.id}"
+        vendor = getattr(b.vendor, 'name', None) if getattr(b, 'vendor', None) else None
+        total = float(b.total or 0.0)
+        bal = float(b.balance or 0.0)
+        st = b.status or 'open'
+        label = f"{num}"
+        if vendor:
+            label += f" ({vendor})"
+        parts.append(f"{label} total ${total:,.2f} balance ${bal:,.2f} {st}")
+
+    speak = ('Cuentas: ' if _is_es(lang) else 'Bills: ') + '; '.join(parts)
+    return {'speak': speak, 'redirect_url': url_for('ap.bills')}
+
+
+def _tool_list_unread_notifications(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
+    limit = args.get('limit')
+    try:
+        limit_int = int(limit) if limit is not None else 10
+    except Exception:
+        limit_int = 10
+    limit_int = max(1, min(limit_int, 25))
+
+    notifs = (
+        Notification.query.filter_by(user_id=user.id)
+        .filter(Notification.read_at.is_(None))
+        .order_by(Notification.created_at.desc())
+        .limit(limit_int)
+        .all()
+    )
+    if not notifs:
+        return {'speak': 'No tienes notificaciones nuevas.' if _is_es(lang) else 'You have no new notifications.', 'redirect_url': url_for('office.notifications')}
+
+    parts = []
+    for n in notifs:
+        title = (n.title or '').strip() or (n.type or 'notification')
+        parts.append(title)
+
+    speak = ('Notificaciones: ' if _is_es(lang) else 'Notifications: ') + '; '.join(parts)
+    return {'speak': speak, 'redirect_url': url_for('office.notifications')}
+
+
+def _tool_mark_all_notifications_read(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
+    now = _utc_now()
+    q = Notification.query.filter_by(user_id=user.id).filter(Notification.read_at.is_(None))
+    updated = q.update({'read_at': now}, synchronize_session=False)
+    db.session.commit()
+    if _is_es(lang):
+        speak = f"Marqué {updated} notificaciones como leídas."
+    else:
+        speak = f"Marked {updated} notifications as read."
+    return {'speak': speak, 'redirect_url': url_for('office.notifications')}
+
+
+def _tool_search_library_documents(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    query = (args.get('query') or '').strip().lower()
+    limit = args.get('limit')
+    try:
+        limit_int = int(limit) if limit is not None else 10
+    except Exception:
+        limit_int = 10
+    limit_int = max(1, min(limit_int, 25))
+
+    docs = LibraryDocument.query.order_by(LibraryDocument.created_at.desc()).limit(200).all()
+    if query:
+        docs = [d for d in docs if query in ((d.title or '').lower() + ' ' + (d.description or '').lower() + ' ' + (d.original_filename or '').lower())]
+    docs = docs[:limit_int]
+
+    if not docs:
+        return {'speak': 'No encontré documentos.' if _is_es(lang) else "I couldn't find any documents.", 'redirect_url': url_for('office.library')}
+
+    parts = []
+    for d in docs:
+        title = d.title or d.original_filename or f"#{d.id}"
+        parts.append(f"{d.id}: {title}")
+
+    speak = ('Documentos: ' if _is_es(lang) else 'Documents: ') + '; '.join(parts)
+    return {'speak': speak, 'redirect_url': url_for('office.library')}
+
+
+def _tool_create_library_project(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    name = (args.get('name') or '').strip()
+    if not name:
+        return {'speak': 'Falta el nombre.' if _is_es(lang) else 'Missing name.'}
+
+    existing = Project.query.filter_by(name=name).first()
+    if existing:
+        return {'speak': 'Ese proyecto ya existe.' if _is_es(lang) else 'That project already exists.', 'redirect_url': url_for('office.library_projects')}
+
+    project = Project(name=name, active=True)
+    db.session.add(project)
+    db.session.commit()
+    return {'speak': 'Proyecto creado.' if _is_es(lang) else 'Project created.', 'redirect_url': url_for('office.library_projects')}
+
+
+def _tool_email_library_document(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
+    doc_id = args.get('document_id')
+    to_email = (args.get('to_email') or '').strip()
+    message = (args.get('message') or '').strip()
+    try:
+        doc_id_int = int(doc_id)
+    except Exception:
+        doc_id_int = None
+
+    if not doc_id_int:
+        return {'speak': 'Falta el ID del documento.' if _is_es(lang) else 'Missing document id.'}
+    if not to_email:
+        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
+
+    doc = LibraryDocument.query.get(doc_id_int)
+    if not doc:
+        return {'speak': 'No encontré el documento.' if _is_es(lang) else "I couldn't find the document.", 'redirect_url': url_for('office.library')}
+
+    abs_path = get_document_abs_path(doc.stored_filename)
+    try:
+        with open(abs_path, 'rb') as f:
+            data = f.read()
+    except Exception:
+        return {'speak': 'No pude leer el archivo.' if _is_es(lang) else "I couldn't read the file.", 'redirect_url': url_for('office.view_library_document', id=doc.id)}
+
+    subject = doc.title or doc.original_filename or 'Document'
+    text_body = message or ("Adjunto el documento." if _is_es(lang) else 'Attached is the document.')
+    html_body = f"<p>{text_body}</p>"
+    sender = (
+        (current_app.config.get('MAIL_DEFAULT_SENDER') or '').strip()
+        or (user.email or '').strip()
+        or 'noreply@example.com'
+    )
+
+    send_email_with_attachments_sync(
+        subject=subject,
+        sender=sender,
+        recipients=[to_email],
+        text_body=text_body,
+        html_body=html_body,
+        attachments=[(doc.original_filename or 'document', doc.content_type or 'application/octet-stream', data)],
+    )
+
+    return {
+        'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
+        'redirect_url': url_for('office.view_library_document', id=doc.id),
+    }
+
+
 def _openai_request(payload: Dict[str, Any]) -> Dict[str, Any]:
     api_key = current_app.config.get('OPENAI_API_KEY')
     timeout = int(current_app.config.get('OPENAI_TIMEOUT') or 15)
@@ -181,6 +489,13 @@ def _openai_request(payload: Dict[str, Any]) -> Dict[str, Any]:
 def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
     model = (current_app.config.get('OPENAI_MODEL') or 'gpt-4o-mini').strip()
 
+    name_for_balance = None
+    asked_lower = (text or '').lower()
+    if any(k in asked_lower for k in ['balance', 'saldo']):
+        name_for_balance = _extract_customer_name_for_balance(text, lang)
+        if name_for_balance:
+            return _tool_customer_balance({'customer_name': name_for_balance}, lang)
+
     tools = [
         {
             'type': 'function',
@@ -188,6 +503,19 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                 'name': 'meetings_today',
                 'description': 'List today meetings from the agenda.',
                 'parameters': {'type': 'object', 'properties': {}, 'additionalProperties': False},
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'customer_balance',
+                'description': 'Get the open balance for a customer by name.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'customer_name': {'type': 'string'}},
+                    'required': ['customer_name'],
+                    'additionalProperties': False,
+                },
             },
         },
         {
@@ -239,13 +567,143 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                 },
             },
         },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'list_customers',
+                'description': 'List customers.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'limit': {'type': 'integer'}},
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'list_open_invoices',
+                'description': 'List open invoices (balance > 0).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'limit': {'type': 'integer'}},
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'invoice_summary',
+                'description': 'Get a summary for an invoice by number or id.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'number_or_id': {'type': 'string'}},
+                    'required': ['number_or_id'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'list_quotes',
+                'description': 'List recent quotes.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'limit': {'type': 'integer'}},
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'list_bills',
+                'description': 'List recent bills (accounts payable).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'limit': {'type': 'integer'}},
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'list_unread_notifications',
+                'description': 'List unread notifications for the current user.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'limit': {'type': 'integer'}},
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'mark_all_notifications_read',
+                'description': 'Mark all unread notifications as read for the current user.',
+                'parameters': {'type': 'object', 'properties': {}, 'additionalProperties': False},
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'search_library_documents',
+                'description': 'Search documents in the Document Library by title/description/filename.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'query': {'type': 'string'},
+                        'limit': {'type': 'integer'},
+                    },
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'create_library_project',
+                'description': 'Create a Document Library project.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {'name': {'type': 'string'}},
+                    'required': ['name'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'email_library_document',
+                'description': 'Email a Document Library document as an attachment.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'document_id': {'type': 'integer'},
+                        'to_email': {'type': 'string'},
+                        'message': {'type': 'string'},
+                    },
+                    'required': ['document_id', 'to_email'],
+                    'additionalProperties': False,
+                },
+            },
+        },
     ]
 
     system = (
-        'You are an assistant inside an accounting and agenda web application. '
+        'You are an assistant inside an accounting, operations, and document library web application. '
+        'You have access to business data in this app for the current logged-in user. '
         'You must be concise. '
-        'If the user asks for data that belongs to the app (invoices, payments, meetings), call the appropriate tool. '
-        'If you cannot do something, say so briefly. '
+        'When the user asks about customers, invoices, quotes, bills, meetings, notifications, or documents, '
+        'use the provided tools instead of refusing. '
+        'If the user mentions a person name while asking for balance, treat it as a CUSTOMER name (not a system user). '
+        'It is allowed to provide customer balances and invoice totals from this app. '
+        'Only say you cannot access something when there is no suitable tool. '
         'Respond in Spanish when lang starts with es, otherwise English.'
     )
 
@@ -286,11 +744,50 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_open_section(args.get('section') or '', lang)
         if name == 'create_meeting':
             return _tool_create_meeting(args, user, lang)
+        if name == 'list_customers':
+            return _tool_list_customers(args, lang)
+        if name == 'customer_balance':
+            return _tool_customer_balance(args, lang)
+        if name == 'list_open_invoices':
+            return _tool_list_open_invoices(args, lang)
+        if name == 'invoice_summary':
+            return _tool_invoice_summary(args, lang)
+        if name == 'list_quotes':
+            return _tool_list_quotes(args, lang)
+        if name == 'list_bills':
+            return _tool_list_bills(args, lang)
+        if name == 'list_unread_notifications':
+            return _tool_list_unread_notifications(args, user, lang)
+        if name == 'mark_all_notifications_read':
+            return _tool_mark_all_notifications_read(args, user, lang)
+        if name == 'search_library_documents':
+            return _tool_search_library_documents(args, lang)
+        if name == 'create_library_project':
+            return _tool_create_library_project(args, lang)
+        if name == 'email_library_document':
+            return _tool_email_library_document(args, user, lang)
 
         return {'speak': 'Acción no soportada.' if _is_es(lang) else 'Unsupported action.'}
 
     content = (message.get('content') or '').strip()
     if not content:
         return {'speak': 'No entendí.' if _is_es(lang) else "I didn't understand."}
+
+    refusal_markers = [
+        'no puedo acceder',
+        'no puedo acceder a',
+        'no tengo acceso',
+        'i cannot access',
+        "i can't access",
+        'cannot access',
+        'can\'t access',
+    ]
+    lowered = content.lower()
+    if any(m in lowered for m in refusal_markers):
+        asked = (text or '').lower()
+        if any(k in asked for k in ['balance', 'saldo']):
+            name = _extract_customer_name_for_balance(text, lang)
+            if name:
+                return _tool_customer_balance({'customer_name': name}, lang)
 
     return {'speak': content}

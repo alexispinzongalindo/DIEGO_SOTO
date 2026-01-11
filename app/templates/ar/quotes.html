@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Quotes{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Quotes</h3>
+        <div class="text-muted">Accounts Receivable</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-primary" href="{{ url_for('ar.create_quote') }}"><i class="bi bi-file-earmark-plus"></i> New Quote</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Valid Until</th>
+                        <th class="text-end">Total</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for quote in quotes %}
+                    <tr>
+                        <td>
+                            <a class="text-decoration-none" href="{{ url_for('ar.view_quote', id=quote.id) }}">{{ quote.number }}</a>
+                        </td>
+                        <td>{{ quote.customer.name if quote.customer else '' }}</td>
+                        <td>{{ quote.date.strftime('%Y-%m-%d') if quote.date else '' }}</td>
+                        <td>{{ quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else '' }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(quote.total or 0) }}</td>
+                        <td>
+                            {% if quote.status == 'invoiced' %}
+                                <span class="badge bg-success">Invoiced</span>
+                            {% elif quote.status == 'accepted' %}
+                                <span class="badge bg-primary">Accepted</span>
+                            {% elif quote.status == 'sent' %}
+                                <span class="badge bg-info text-dark">Sent</span>
+                            {% elif quote.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Draft</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Quote actions">
+                                <a class="btn btn-outline-primary" href="{{ url_for('ar.view_quote', id=quote.id) }}">View</a>
+                                <a class="btn btn-outline-secondary" href="{{ url_for('ar.edit_quote', id=quote.id) }}">Edit</a>
+                                <form action="{{ url_for('ar.delete_quote', id=quote.id) }}" method="post" class="d-inline">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete quote {{ quote.number }}?');">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4">
+                            <div class="text-muted">No quotes found</div>
+                            <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ar.create_quote') }}">Create your first quote</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

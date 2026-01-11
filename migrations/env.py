@@ -71,11 +71,7 @@ def run_migrations_online():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
 
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix='sqlalchemy.',
-        poolclass=pool.NullPool,
-    )
+    connectable = current_app.extensions['migrate'].db.engine
 
     with connectable.connect() as connection:
         context.configure(

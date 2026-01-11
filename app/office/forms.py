@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, SubmitField, IntegerField
+from wtforms import StringField, TextAreaField, SubmitField, IntegerField, SelectField
 from wtforms.fields import DateTimeLocalField
-from wtforms.validators import DataRequired, Optional, Length, NumberRange
+from wtforms.validators import DataRequired, Optional, Length, NumberRange, Email
 
 
 class MeetingForm(FlaskForm):
@@ -12,3 +12,27 @@ class MeetingForm(FlaskForm):
     reminder_minutes = IntegerField('Reminder (minutes before)', validators=[Optional(), NumberRange(min=0, max=10080)])
     notes = TextAreaField('Notes', validators=[Optional()])
     submit = SubmitField('Save Meeting')
+
+
+class ProjectForm(FlaskForm):
+    name = StringField('Project Name', validators=[DataRequired(), Length(max=120)])
+    submit = SubmitField('Save Project')
+
+
+class LibraryDocumentForm(FlaskForm):
+    owner_id = SelectField('Owner', coerce=int, validators=[DataRequired()])
+    category = SelectField('Category', choices=[('project', 'Project'), ('personal', 'Personal')], validators=[DataRequired()])
+    project_id = SelectField('Project (if category is Project)', coerce=int, validators=[Optional()])
+    title = StringField('Title', validators=[DataRequired(), Length(max=200)])
+    description = TextAreaField('Description', validators=[Optional()])
+    submit = SubmitField('Save Document')
+
+
+class EmailLibraryDocumentForm(FlaskForm):
+    to_email = StringField('To', validators=[DataRequired(), Email(), Length(max=120)])
+    message = TextAreaField('Message', validators=[Optional()])
+    submit = SubmitField('Send')
+
+
+class DeleteForm(FlaskForm):
+    submit = SubmitField('Delete')

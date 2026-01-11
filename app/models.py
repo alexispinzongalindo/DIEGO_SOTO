@@ -46,6 +46,7 @@ class Customer(db.Model):
     credit_limit = db.Column(db.Numeric(10, 2), default=0.00)
     balance = db.Column(db.Numeric(10, 2), default=0.00)
     invoices = db.relationship('Invoice', backref='customer', lazy='dynamic')
+    quotes = db.relationship('Quote', backref='customer', lazy='dynamic')
     payments = db.relationship('Payment', backref='customer', lazy='dynamic')
 
 class Vendor(db.Model):
@@ -101,6 +102,34 @@ class Invoice(db.Model):
 class InvoiceItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'))
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    product = db.relationship('Product')
+    description = db.Column(db.String(200))
+    quantity = db.Column(db.Numeric(10, 2))
+    unit_price = db.Column(db.Numeric(10, 2))
+    amount = db.Column(db.Numeric(10, 2))
+
+
+class Quote(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.String(20), unique=True, index=True)
+    date = db.Column(db.Date, index=True, default=datetime.utcnow)
+    valid_until = db.Column(db.Date)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    subtotal = db.Column(db.Numeric(10, 2))
+    tax = db.Column(db.Numeric(10, 2))
+    total = db.Column(db.Numeric(10, 2))
+    status = db.Column(db.String(20), default='draft')  # draft, sent, accepted, rejected, invoiced
+    terms = db.Column(db.String(50))
+    notes = db.Column(db.Text)
+    invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'))
+    invoice = db.relationship('Invoice')
+    items = db.relationship('QuoteItem', backref='quote', lazy='dynamic')
+
+
+class QuoteItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    quote_id = db.Column(db.Integer, db.ForeignKey('quote.id'))
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
     product = db.relationship('Product')
     description = db.Column(db.String(200))
@@ -193,6 +222,34 @@ class Notification(db.Model):
     ref_id = db.Column(db.Integer, index=True)
     created_at = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     read_at = db.Column(db.DateTime, index=True)
+
+
+class Project(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, index=True)
+    active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+
+
+class LibraryDocument(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), index=True)
+    description = db.Column(db.Text)
+    category = db.Column(db.String(20), index=True, default='personal')  # personal, project
+
+    project_id = db.Column(db.Integer, db.ForeignKey('project.id'), index=True)
+    project = db.relationship('Project')
+
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    owner = db.relationship('User')
+
+    original_filename = db.Column(db.String(255))
+    stored_filename = db.Column(db.String(255), unique=True, index=True)
+    content_type = db.Column(db.String(120))
+    size_bytes = db.Column(db.Integer)
+
+    created_at = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, index=True, default=datetime.utcnow)
 
 @login_manager.user_loader
 def load_user(id):

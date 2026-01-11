@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.main import bp
-from app.models import Invoice, Bill, Customer, Vendor, Payment, VendorPayment
+from app.models import Invoice, Quote, Bill, Customer, Vendor, Payment, VendorPayment
 from datetime import datetime, timedelta
 
 @bp.route('/')
@@ -25,6 +25,7 @@ def dashboard():
     
     # Get recent invoices and bills
     recent_invoices = Invoice.query.order_by(Invoice.date.desc()).limit(5).all()
+    recent_quotes = Quote.query.order_by(Quote.date.desc()).limit(5).all()
     recent_bills = Bill.query.order_by(Bill.date.desc()).limit(5).all()
     
     # Calculate total receivables and payables
@@ -63,6 +64,7 @@ def dashboard():
                          thirty_day_revenue=thirty_day_revenue,
                          thirty_day_expenses=thirty_day_expenses,
                          thirty_day_profit=thirty_day_profit,
+                         recent_quotes=recent_quotes,
                          recent_invoices=recent_invoices,
                          recent_bills=recent_bills,
                          today=today)

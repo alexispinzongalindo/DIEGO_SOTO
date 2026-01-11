@@ -7,9 +7,9 @@ from fpdf import FPDF
 
 from app import db
 from app.accounts_receivable import bp
-from app.accounts_receivable.forms import CustomerForm, InvoiceForm, PaymentForm, EmailInvoiceForm, ItemForm, DeleteForm
+from app.accounts_receivable.forms import CustomerForm, InvoiceForm, QuoteForm, PaymentForm, EmailInvoiceForm, ItemForm, DeleteForm
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Customer, Invoice, Payment, InvoiceItem, Product
+from app.models import Customer, Invoice, Quote, Payment, InvoiceItem, QuoteItem, Product
 
 
 def _build_invoice_pdf(invoice, items):
@@ -65,12 +65,50 @@ def _build_invoice_pdf(invoice, items):
     return out
 
 
+def _next_quote_number():
+    last = Quote.query.order_by(Quote.id.desc()).first()
+    if not last or not last.number:
+        return 'Q-000001'
+    try:
+        raw = (last.number or '').strip().upper()
+        if raw.startswith('Q-'):
+            n = int(raw.split('-', 1)[1])
+        else:
+            n = int(raw)
+        return f"Q-{n + 1:06d}"
+    except Exception:
+        return f"Q-{(last.id + 1):06d}"
+
+
+def _next_invoice_number():
+    last = Invoice.query.order_by(Invoice.id.desc()).first()
+    if not last or not last.number:
+        return 'INV-000001'
+    try:
+        raw = (last.number or '').strip().upper()
+        if raw.startswith('INV-'):
+            n = int(raw.split('-', 1)[1])
+        else:
+            n = int(raw)
+        return f"INV-{n + 1:06d}"
+    except Exception:
+        return f"INV-{(last.id + 1):06d}"
+
+
 @bp.route('/invoices')
 @login_required
 def invoices():
     invoice_list = Invoice.query.order_by(Invoice.date.desc()).all()
     delete_form = DeleteForm()
     return render_template('ar/invoices.html', title='Invoices', invoices=invoice_list, delete_form=delete_form)
+
+
+@bp.route('/quotes')
+@login_required
+def quotes():
+    quote_list = Quote.query.order_by(Quote.date.desc()).all()
+    delete_form = DeleteForm()
+    return render_template('ar/quotes.html', title='Quotes', quotes=quote_list, delete_form=delete_form)
 
 
 @bp.route('/customers')
@@ -282,6 +320,320 @@ def create_invoice():
         return redirect(url_for('ar.view_invoice', id=invoice.id))
 
     return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
+
+
+@bp.route('/quote/create', methods=['GET', 'POST'])
+@login_required
+def create_quote():
+    customers = Customer.query.order_by(Customer.name.asc()).all()
+    if not customers:
+        flash('Create a customer before creating a quote.', 'warning')
+        return redirect(url_for('ar.create_customer'))
+
+    products = Product.query.order_by(Product.code.asc()).all()
+    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
+
+    form = QuoteForm()
+    form.customer_id.choices = [(c.id, c.name) for c in customers]
+    for item_form in form.items:
+        item_form.form.product_id.choices = product_choices
+
+    if request.method == 'GET':
+        form.date.data = date.today()
+        form.status.data = 'draft'
+        if not form.customer_id.data:
+            form.customer_id.data = customers[0].id
+
+    if form.validate_on_submit():
+        item_rows = []
+        subtotal = 0.0
+        for item_form in form.items:
+            product_id = item_form.form.product_id.data or 0
+            if product_id == 0:
+                product_id = None
+
+            description = (item_form.form.description.data or '').strip()
+            qty = item_form.form.quantity.data
+            unit_price = item_form.form.unit_price.data
+
+            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            if is_blank:
+                continue
+
+            product = Product.query.get(product_id) if product_id else None
+            if not description and product:
+                description = product.description or ''
+
+            if qty is None:
+                flash('Each quote item must include a quantity.', 'danger')
+                return render_template('ar/create_quote.html', title='Create Quote', form=form)
+
+            if unit_price is None and product:
+                unit_price = product.price
+            if unit_price is None:
+                flash('Each quote item must include a unit price (or select an item with a default price).', 'danger')
+                return render_template('ar/create_quote.html', title='Create Quote', form=form)
+
+            amount = float(qty) * float(unit_price)
+            subtotal += amount
+            item_rows.append({
+                'product_id': product_id,
+                'description': description,
+                'quantity': qty,
+                'unit_price': unit_price,
+                'amount': amount,
+            })
+
+        if not item_rows:
+            flash('Add at least one quote item.', 'danger')
+            return render_template('ar/create_quote.html', title='Create Quote', form=form)
+
+        tax = float(form.tax.data or 0)
+        total = subtotal + tax
+        quote = Quote(
+            number=_next_quote_number(),
+            date=form.date.data,
+            valid_until=form.valid_until.data,
+            customer_id=form.customer_id.data,
+            subtotal=subtotal,
+            tax=tax,
+            total=total,
+            status=form.status.data,
+            terms=form.terms.data,
+            notes=form.notes.data,
+        )
+        db.session.add(quote)
+
+        for row in item_rows:
+            q_item = QuoteItem(
+                quote=quote,
+                product_id=row['product_id'],
+                description=row['description'],
+                quantity=row['quantity'],
+                unit_price=row['unit_price'],
+                amount=row['amount'],
+            )
+            db.session.add(q_item)
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Unable to create quote.', 'danger')
+            return render_template('ar/create_quote.html', title='Create Quote', form=form)
+
+        flash('Quote created.', 'success')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    return render_template('ar/create_quote.html', title='Create Quote', form=form)
+
+
+@bp.route('/quote/<int:id>')
+@login_required
+def view_quote(id):
+    quote = Quote.query.get_or_404(id)
+    item_list = quote.items.order_by(QuoteItem.id.asc()).all()
+    delete_form = DeleteForm()
+    return render_template(
+        'ar/view_quote.html',
+        title=f'Quote {quote.number}',
+        quote=quote,
+        items=item_list,
+        delete_form=delete_form,
+    )
+
+
+@bp.route('/quote/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_quote(id):
+    quote = Quote.query.get_or_404(id)
+
+    customers = Customer.query.order_by(Customer.name.asc()).all()
+    if not customers:
+        flash('Create a customer before editing a quote.', 'warning')
+        return redirect(url_for('ar.create_customer'))
+
+    products = Product.query.order_by(Product.code.asc()).all()
+    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
+
+    form = QuoteForm(obj=quote)
+    form.submit.label.text = 'Save Quote'
+    form.customer_id.choices = [(c.id, c.name) for c in customers]
+    for item_form in form.items:
+        item_form.form.product_id.choices = product_choices
+
+    if request.method == 'GET':
+        form.customer_id.data = quote.customer_id
+        existing_items = quote.items.order_by(QuoteItem.id.asc()).all()
+        for idx, q_item in enumerate(existing_items[: len(form.items)]):
+            form.items[idx].form.product_id.data = q_item.product_id or 0
+            form.items[idx].form.description.data = q_item.description
+            form.items[idx].form.quantity.data = q_item.quantity
+            form.items[idx].form.unit_price.data = q_item.unit_price
+
+    if form.validate_on_submit():
+        item_rows = []
+        subtotal = 0.0
+        for item_form in form.items:
+            product_id = item_form.form.product_id.data or 0
+            if product_id == 0:
+                product_id = None
+
+            description = (item_form.form.description.data or '').strip()
+            qty = item_form.form.quantity.data
+            unit_price = item_form.form.unit_price.data
+
+            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            if is_blank:
+                continue
+
+            product = Product.query.get(product_id) if product_id else None
+            if not description and product:
+                description = product.description or ''
+
+            if qty is None:
+                flash('Each quote item must include a quantity.', 'danger')
+                return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
+
+            if unit_price is None and product:
+                unit_price = product.price
+            if unit_price is None:
+                flash('Each quote item must include a unit price (or select an item with a default price).', 'danger')
+                return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
+
+            amount = float(qty) * float(unit_price)
+            subtotal += amount
+            item_rows.append({
+                'product_id': product_id,
+                'description': description,
+                'quantity': qty,
+                'unit_price': unit_price,
+                'amount': amount,
+            })
+
+        if not item_rows:
+            flash('Add at least one quote item.', 'danger')
+            return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
+
+        tax = float(form.tax.data or 0)
+        total = subtotal + tax
+
+        quote.date = form.date.data
+        quote.valid_until = form.valid_until.data
+        quote.customer_id = form.customer_id.data
+        quote.subtotal = subtotal
+        quote.tax = tax
+        quote.total = total
+        quote.status = form.status.data
+        quote.terms = form.terms.data
+        quote.notes = form.notes.data
+
+        existing_items = quote.items.all()
+        for q_item in existing_items:
+            db.session.delete(q_item)
+        db.session.flush()
+
+        for row in item_rows:
+            q_item = QuoteItem(
+                quote=quote,
+                product_id=row['product_id'],
+                description=row['description'],
+                quantity=row['quantity'],
+                unit_price=row['unit_price'],
+                amount=row['amount'],
+            )
+            db.session.add(q_item)
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash('Unable to update quote.', 'danger')
+            return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
+
+        flash('Quote updated.', 'success')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
+
+
+@bp.route('/quote/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_quote(id):
+    quote = Quote.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash('Unable to delete quote.', 'danger')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    if quote.invoice_id:
+        flash('Cannot delete a quote that has been invoiced.', 'warning')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    items = quote.items.all()
+    for q_item in items:
+        db.session.delete(q_item)
+    db.session.delete(quote)
+    db.session.commit()
+    flash('Quote deleted.', 'success')
+    return redirect(url_for('ar.quotes'))
+
+
+@bp.route('/quote/<int:id>/convert', methods=['POST'])
+@login_required
+def convert_quote_to_invoice(id):
+    quote = Quote.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash('Unable to convert quote.', 'danger')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    if quote.invoice_id:
+        flash('Quote has already been converted to an invoice.', 'warning')
+        return redirect(url_for('ar.view_invoice', id=quote.invoice_id))
+
+    item_list = quote.items.order_by(QuoteItem.id.asc()).all()
+    if not item_list:
+        flash('Cannot convert a quote with no items.', 'danger')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    invoice = Invoice(
+        number=_next_invoice_number(),
+        date=date.today(),
+        due_date=None,
+        customer_id=quote.customer_id,
+        subtotal=quote.subtotal,
+        tax=quote.tax,
+        total=quote.total,
+        status='open',
+        terms=quote.terms,
+        notes=quote.notes,
+    )
+    db.session.add(invoice)
+
+    for q_item in item_list:
+        inv_item = InvoiceItem(
+            invoice=invoice,
+            product_id=q_item.product_id,
+            description=q_item.description,
+            quantity=q_item.quantity,
+            unit_price=q_item.unit_price,
+            amount=q_item.amount,
+        )
+        db.session.add(inv_item)
+
+    quote.invoice = invoice
+    quote.status = 'invoiced'
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash('Unable to convert quote to invoice.', 'danger')
+        return redirect(url_for('ar.view_quote', id=quote.id))
+
+    flash('Quote converted to invoice.', 'success')
+    return redirect(url_for('ar.view_invoice', id=invoice.id))
 
 
 @bp.route('/invoice/<int:id>/edit', methods=['GET', 'POST'])
