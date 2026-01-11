@@ -41,3 +41,32 @@ body { background-color: #f8f9fa; }
   box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.55);
   text-shadow: 0 0 8px rgba(255, 193, 7, 0.55);
 }
+
+.ai-assistant-btn::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 193, 7, 0.95);
+  box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.0);
+  animation: aiDotPulse 1.6s ease-out infinite;
+  pointer-events: none;
+}
+
+.ai-assistant-btn .bi {
+  animation: aiMicShimmer 2.4s ease-in-out infinite;
+}
+
+@keyframes aiDotPulse {
+  0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.55); }
+  65% { transform: scale(1.0); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0.0); }
+  100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.0); }
+}
+
+@keyframes aiMicShimmer {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 0 rgba(255, 193, 7, 0.0)); }
+  50% { opacity: 0.95; filter: drop-shadow(0 0 6px rgba(255, 193, 7, 0.65)); }
+}
