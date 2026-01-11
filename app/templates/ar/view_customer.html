@@ -13,6 +13,10 @@
             <a class="btn btn-outline-success" href="tel:{{ customer.phone }}"><i class="bi bi-telephone"></i> Call</a>
         {% endif %}
         <a class="btn btn-success" href="{{ url_for('ar.record_payment', customer_id=customer.id) }}"><i class="bi bi-cash-coin"></i> Record Payment</a>
+        <form method="post" action="{{ url_for('ar.delete_customer', id=customer.id) }}" class="d-inline" onsubmit="return confirm('Delete this customer? This cannot be undone.');">
+            {{ delete_form.hidden_tag() }}
+            <button type="submit" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+        </form>
     </div>
 </div>
 

@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  function speak(text, lang) {
+  function speak(text, lang, onEnd) {
     if (!('speechSynthesis' in window)) return;
     if (!text) return;
     window.speechSynthesis.cancel();
@@ -15,6 +15,15 @@
     }
     utter.rate = 1;
     utter.pitch = 1;
+    if (typeof onEnd === 'function') {
+      utter.onend = () => {
+        try {
+          onEnd();
+        } catch (e) {
+          // ignore
+        }
+      };
+    }
     window.speechSynthesis.speak(utter);
   }
 
@@ -86,11 +95,70 @@
     recognition.maxAlternatives = 1;
 
     let busy = false;
+    let collecting = false;
+    let pendingQuestions = [];
+    let collectedAnswers = [];
+    let lastIntent = '';
 
-    function startListening() {
+    function extractNumberedQuestions(text) {
+      if (!text) return [];
+      const out = [];
+      const re = /(?:^|\n)\s*\d+\.\s*([^\n]+)/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const q = (m[1] || '').trim();
+        if (q) out.push(q);
+      }
+      return out;
+    }
+
+    function askNextQuestion() {
+      const activeLang = resolveLang();
+      const q = pendingQuestions[0];
+      responseEl.value = q || '';
+      statusEl.textContent = 'Answer...';
+      speak(q, activeLang, () => {
+        setTimeout(() => {
+          startListening(true);
+        }, 1200);
+      });
+    }
+
+    async function finalizeCollected() {
+      const activeLang = resolveLang();
+      const parts = [];
+      for (let i = 0; i < collectedAnswers.length; i++) {
+        const q = collectedAnswers[i].q;
+        const a = collectedAnswers[i].a;
+        parts.push(`${i + 1}. ${q}: ${a}`);
+      }
+      const finalText = `${lastIntent}\n\nDetails:\n${parts.join('\n')}`.trim();
+      statusEl.textContent = 'Thinking...';
+      busy = true;
+      try {
+        const data = await sendCommand(finalText, activeLang);
+        const speakText = data.speak || '';
+        responseEl.value = speakText;
+        statusEl.textContent = 'Done.';
+        speak(speakText, activeLang);
+        if (data.redirect_url) {
+          setTimeout(() => {
+            window.location.href = data.redirect_url;
+          }, 800);
+        }
+      } catch (e) {
+        statusEl.textContent = 'Error. Try again.';
+      } finally {
+        busy = false;
+      }
+    }
+
+    function startListening(preserveResponse) {
       if (busy) return;
       transcriptEl.value = '';
-      responseEl.value = '';
+      if (!preserveResponse) {
+        responseEl.value = '';
+      }
       statusEl.textContent = 'Listening...';
       try {
         recognition.lang = resolveLang();
@@ -127,12 +195,37 @@
     recognition.onresult = async (event) => {
       const text = event.results[0][0].transcript;
       transcriptEl.value = text;
+
+      if (collecting) {
+        const currentQ = pendingQuestions.shift();
+        collectedAnswers.push({ q: currentQ, a: text });
+        if (pendingQuestions.length > 0) {
+          askNextQuestion();
+          return;
+        }
+        collecting = false;
+        await finalizeCollected();
+        return;
+      }
+
       statusEl.textContent = 'Thinking...';
       busy = true;
       try {
         const activeLang = resolveLang();
         const data = await sendCommand(text, activeLang);
         const speakText = data.speak || '';
+
+        const questions = extractNumberedQuestions(speakText);
+        if (questions.length >= 2) {
+          collecting = true;
+          pendingQuestions = questions.slice();
+          collectedAnswers = [];
+          lastIntent = text;
+          busy = false;
+          askNextQuestion();
+          return;
+        }
+
         responseEl.value = speakText;
         statusEl.textContent = 'Done.';
         speak(speakText, activeLang);
@@ -144,7 +237,9 @@
       } catch (e) {
         statusEl.textContent = 'Error. Try again.';
       } finally {
-        busy = false;
+        if (!collecting) {
+          busy = false;
+        }
       }
     };
 

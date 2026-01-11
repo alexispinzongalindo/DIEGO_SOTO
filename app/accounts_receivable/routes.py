@@ -124,12 +124,14 @@ def view_customer(id):
     customer = Customer.query.get_or_404(id)
     invoice_list = customer.invoices.order_by(Invoice.date.desc()).all()
     payment_list = customer.payments.order_by(Payment.date.desc()).all()
+    delete_form = DeleteForm()
     return render_template(
         'ar/view_customer.html',
         title=f'Customer {customer.name}',
         customer=customer,
         invoices=invoice_list,
         payments=payment_list,
+        delete_form=delete_form,
     )
 
 
@@ -150,6 +152,31 @@ def edit_customer(id):
         return redirect(url_for('ar.view_customer', id=customer.id))
 
     return render_template('ar/edit_customer.html', title=f'Edit Customer {customer.name}', form=form, customer=customer)
+
+
+@bp.route('/customers/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_customer(id):
+    customer = Customer.query.get_or_404(id)
+    form = DeleteForm()
+    if not form.validate_on_submit():
+        flash('Unable to delete customer.', 'danger')
+        return redirect(url_for('ar.view_customer', id=customer.id))
+
+    if customer.invoices.count() > 0 or customer.quotes.count() > 0 or customer.payments.count() > 0 or customer.purchase_orders.count() > 0:
+        flash('Cannot delete a customer with related transactions (invoices, quotes, payments, or purchase orders).', 'warning')
+        return redirect(url_for('ar.view_customer', id=customer.id))
+
+    db.session.delete(customer)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash('Unable to delete customer.', 'danger')
+        return redirect(url_for('ar.view_customer', id=customer.id))
+
+    flash('Customer deleted.', 'success')
+    return redirect(url_for('ar.customers'))
 
 
 @bp.route('/customers/create', methods=['GET', 'POST'])
