@@ -13,7 +13,7 @@ from fpdf import FPDF
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, Quote, User
+from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, Quote, QuoteItem, User
 from app.office.library_storage import get_document_abs_path
 
 
@@ -94,6 +94,21 @@ def _next_invoice_number() -> str:
         return f"INV-{n + 1:06d}"
     except Exception:
         return f"INV-{(last.id + 1):06d}"
+
+
+def _next_quote_number() -> str:
+    last = Quote.query.order_by(Quote.id.desc()).first()
+    if not last or not last.number:
+        return 'Q-000001'
+    try:
+        raw = (last.number or '').strip().upper()
+        if raw.startswith('Q-'):
+            n = int(raw.split('-', 1)[1])
+        else:
+            n = int(raw)
+        return f"Q-{n + 1:06d}"
+    except Exception:
+        return f"Q-{(last.id + 1):06d}"
 
 
 def _extract_customer_name_for_balance(text: str, lang: str) -> Optional[str]:
@@ -458,6 +473,403 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     if isinstance(out, str):
         out = out.encode('latin-1')
     return out
+
+
+def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Quote', ln=True)
+
+    pdf.set_font('Helvetica', '', 11)
+    pdf.cell(0, 6, f"Quote #: {quote.number}", ln=True)
+    pdf.cell(0, 6, f"Quote Date: {quote.date.strftime('%Y-%m-%d') if quote.date else ''}", ln=True)
+    pdf.cell(0, 6, f"Valid Until: {quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else ''}", ln=True)
+    if quote.customer:
+        pdf.cell(0, 6, f"Customer: {quote.customer.name}", ln=True)
+    pdf.ln(4)
+
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(90, 8, 'Description', border=1)
+    pdf.cell(20, 8, 'Qty', border=1, align='R')
+    pdf.cell(30, 8, 'Unit Price', border=1, align='R')
+    pdf.cell(30, 8, 'Amount', border=1, align='R')
+    pdf.ln(8)
+
+    pdf.set_font('Helvetica', '', 10)
+    for item in items:
+        desc = item.description or ''
+        qty = float(item.quantity or 0)
+        unit_price = float(item.unit_price or 0)
+        amount = float(item.amount or 0)
+        pdf.cell(90, 8, (desc[:45] + '...') if len(desc) > 48 else desc, border=1)
+        pdf.cell(20, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
+        pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
+        pdf.ln(8)
+
+    pdf.ln(4)
+    pdf.set_font('Helvetica', '', 11)
+    subtotal = float(quote.subtotal or 0)
+    tax = float(quote.tax or 0)
+    total = float(quote.total or 0)
+    pdf.cell(140, 6, 'Subtotal', align='R')
+    pdf.cell(30, 6, f"${subtotal:,.2f}", ln=True, align='R')
+    pdf.cell(140, 6, 'Tax', align='R')
+    pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(140, 7, 'Total', align='R')
+    pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+
+    out = pdf.output(dest='S')
+    if isinstance(out, str):
+        out = out.encode('latin-1')
+    return out
+
+
+def _find_quote_by_number_or_id(number_or_id: str) -> Optional[Quote]:
+    number_or_id = (number_or_id or '').strip()
+    if not number_or_id:
+        return None
+    quote = None
+    if number_or_id.isdigit():
+        quote = Quote.query.get(int(number_or_id))
+    if quote is None:
+        quote = Quote.query.filter_by(number=number_or_id).first()
+    return quote
+
+
+def _tool_create_quote(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    customer_name = (args.get('customer_name') or '').strip()
+    if not customer_name:
+        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
+
+    amount = args.get('amount')
+    try:
+        amount_val = float(amount)
+    except Exception:
+        amount_val = 0.0
+    if amount_val <= 0:
+        return {'speak': 'Falta el monto.' if _is_es(lang) else 'Missing amount.'}
+
+    customer = _find_customer_by_name(customer_name)
+    if not customer:
+        return {
+            'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.",
+            'redirect_url': url_for('ar.customers'),
+        }
+
+    description = (args.get('description') or '').strip() or ('Servicio' if _is_es(lang) else 'Service')
+
+    quote_date_raw = (args.get('date') or '').strip()
+    quote_date = None
+    if quote_date_raw:
+        try:
+            quote_date = parser.parse(quote_date_raw).date()
+        except Exception:
+            quote_date = None
+    if quote_date is None:
+        quote_date = date.today()
+
+    valid_until_raw = (args.get('valid_until') or '').strip()
+    valid_until = None
+    if valid_until_raw:
+        try:
+            valid_until = parser.parse(valid_until_raw).date()
+        except Exception:
+            valid_until = None
+
+    tax = args.get('tax')
+    try:
+        tax_val = float(tax) if tax is not None else 0.0
+    except Exception:
+        tax_val = 0.0
+    tax_val = max(0.0, tax_val)
+
+    subtotal = float(amount_val)
+    total = float(subtotal + tax_val)
+
+    quote = Quote(
+        number=_next_quote_number(),
+        date=quote_date,
+        valid_until=valid_until,
+        customer_id=customer.id,
+        subtotal=subtotal,
+        tax=tax_val,
+        total=total,
+        status=(args.get('status') or '').strip() or 'draft',
+        terms=(args.get('terms') or '').strip() or None,
+        notes=(args.get('notes') or '').strip() or None,
+    )
+    db.session.add(quote)
+    db.session.flush()
+
+    item = QuoteItem(
+        quote=quote,
+        product_id=None,
+        description=description,
+        quantity=1,
+        unit_price=subtotal,
+        amount=subtotal,
+    )
+    db.session.add(item)
+    db.session.commit()
+
+    if _is_es(lang):
+        speak = f"Cotización creada para {customer.name} por ${total:,.2f}."
+    else:
+        speak = f"Quote created for {customer.name} for ${total:,.2f}."
+
+    return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+
+
+def _tool_edit_quote(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    if not number_or_id:
+        return {'speak': 'Falta el número de cotización.' if _is_es(lang) else 'Missing quote number.'}
+
+    quote = _find_quote_by_number_or_id(number_or_id)
+    if not quote:
+        return {'speak': 'No encontré esa cotización.' if _is_es(lang) else "I couldn't find that quote.", 'redirect_url': url_for('ar.quotes')}
+
+    if quote.invoice_id:
+        return {
+            'speak': 'Esa cotización ya fue facturada y no se puede editar.' if _is_es(lang) else 'That quote has already been invoiced and cannot be edited.',
+            'redirect_url': url_for('ar.view_quote', id=quote.id),
+        }
+
+    customer_name = (args.get('customer_name') or '').strip()
+    if customer_name:
+        customer = _find_customer_by_name(customer_name)
+        if not customer:
+            return {'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.", 'redirect_url': url_for('ar.customers')}
+        quote.customer_id = customer.id
+
+    quote_date_raw = (args.get('date') or '').strip()
+    if quote_date_raw:
+        try:
+            quote.date = parser.parse(quote_date_raw).date()
+        except Exception:
+            pass
+
+    valid_until_raw = (args.get('valid_until') or '').strip()
+    if valid_until_raw:
+        try:
+            quote.valid_until = parser.parse(valid_until_raw).date()
+        except Exception:
+            pass
+
+    status = (args.get('status') or '').strip()
+    if status:
+        quote.status = status
+
+    terms = args.get('terms')
+    if terms is not None:
+        quote.terms = (terms or '').strip() or None
+
+    notes = args.get('notes')
+    if notes is not None:
+        quote.notes = (notes or '').strip() or None
+
+    amount = args.get('amount')
+    tax = args.get('tax')
+
+    should_reprice = amount is not None or tax is not None or args.get('description') is not None
+    if should_reprice:
+        try:
+            amount_val = float(amount) if amount is not None else float(quote.subtotal or 0)
+        except Exception:
+            amount_val = float(quote.subtotal or 0)
+        try:
+            tax_val = float(tax) if tax is not None else float(quote.tax or 0)
+        except Exception:
+            tax_val = float(quote.tax or 0)
+
+        amount_val = max(0.0, amount_val)
+        tax_val = max(0.0, tax_val)
+        quote.subtotal = amount_val
+        quote.tax = tax_val
+        quote.total = float(amount_val + tax_val)
+
+        description = (args.get('description') or '').strip()
+        existing_items = quote.items.order_by(QuoteItem.id.asc()).all()
+        if existing_items:
+            first = existing_items[0]
+            if description:
+                first.description = description
+            first.quantity = 1
+            first.unit_price = amount_val
+            first.amount = amount_val
+            for extra in existing_items[1:]:
+                db.session.delete(extra)
+        else:
+            if not description:
+                description = 'Servicio' if _is_es(lang) else 'Service'
+            db.session.add(
+                QuoteItem(
+                    quote=quote,
+                    product_id=None,
+                    description=description,
+                    quantity=1,
+                    unit_price=amount_val,
+                    amount=amount_val,
+                )
+            )
+
+    db.session.commit()
+
+    return {
+        'speak': 'Cotización actualizada.' if _is_es(lang) else 'Quote updated.',
+        'redirect_url': url_for('ar.view_quote', id=quote.id),
+    }
+
+
+def _tool_delete_quote(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    confirm = bool(args.get('confirm'))
+
+    if not number_or_id:
+        return {'speak': 'Falta el número de cotización.' if _is_es(lang) else 'Missing quote number.'}
+
+    quote = _find_quote_by_number_or_id(number_or_id)
+    if not quote:
+        return {'speak': 'No encontré esa cotización.' if _is_es(lang) else "I couldn't find that quote.", 'redirect_url': url_for('ar.quotes')}
+
+    if quote.invoice_id:
+        return {
+            'speak': 'No se puede borrar una cotización ya facturada.' if _is_es(lang) else 'Cannot delete a quote that has been invoiced.',
+            'redirect_url': url_for('ar.view_quote', id=quote.id),
+        }
+
+    if not confirm:
+        if _is_es(lang):
+            speak = f"Confirmar: ¿Quieres borrar la cotización {quote.number}? Repite y di confirm=true."
+        else:
+            speak = f"Confirmation needed: delete quote {quote.number}? Repeat with confirm=true."
+        return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+
+    items = quote.items.all()
+    for q_item in items:
+        db.session.delete(q_item)
+    db.session.delete(quote)
+    db.session.commit()
+    return {'speak': 'Cotización borrada.' if _is_es(lang) else 'Quote deleted.', 'redirect_url': url_for('ar.quotes')}
+
+
+def _tool_convert_quote_to_invoice(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    confirm = bool(args.get('confirm'))
+
+    if not number_or_id:
+        return {'speak': 'Falta el número de cotización.' if _is_es(lang) else 'Missing quote number.'}
+
+    quote = _find_quote_by_number_or_id(number_or_id)
+    if not quote:
+        return {'speak': 'No encontré esa cotización.' if _is_es(lang) else "I couldn't find that quote.", 'redirect_url': url_for('ar.quotes')}
+
+    if quote.invoice_id:
+        return {
+            'speak': 'Esa cotización ya fue convertida.' if _is_es(lang) else 'That quote has already been converted.',
+            'redirect_url': url_for('ar.view_invoice', id=quote.invoice_id),
+        }
+
+    item_list = quote.items.order_by(QuoteItem.id.asc()).all()
+    if not item_list:
+        return {'speak': 'No se puede convertir una cotización sin artículos.' if _is_es(lang) else 'Cannot convert a quote with no items.', 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+
+    if not confirm:
+        if _is_es(lang):
+            speak = f"Confirmar: ¿Quieres convertir la cotización {quote.number} a factura? Repite y di confirm=true."
+        else:
+            speak = f"Confirmation needed: convert quote {quote.number} to an invoice? Repeat with confirm=true."
+        return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+
+    invoice = Invoice(
+        number=_next_invoice_number(),
+        date=date.today(),
+        due_date=None,
+        customer_id=quote.customer_id,
+        subtotal=quote.subtotal,
+        tax=quote.tax,
+        total=quote.total,
+        status='open',
+        terms=quote.terms,
+        notes=quote.notes,
+    )
+    db.session.add(invoice)
+    db.session.flush()
+
+    for q_item in item_list:
+        db.session.add(
+            InvoiceItem(
+                invoice=invoice,
+                product_id=q_item.product_id,
+                description=q_item.description,
+                quantity=q_item.quantity,
+                unit_price=q_item.unit_price,
+                amount=q_item.amount,
+            )
+        )
+
+    quote.invoice = invoice
+    quote.status = 'invoiced'
+    db.session.commit()
+
+    if _is_es(lang):
+        speak = f"Cotización {quote.number} convertida a factura {invoice.number}."
+    else:
+        speak = f"Quote {quote.number} converted to invoice {invoice.number}."
+    return {'speak': speak, 'redirect_url': url_for('ar.view_invoice', id=invoice.id)}
+
+
+def _tool_email_quote(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    to_email = (args.get('to_email') or '').strip()
+    message = (args.get('message') or '').strip()
+    confirm = bool(args.get('confirm'))
+
+    if not number_or_id:
+        return {'speak': 'Falta el número de cotización.' if _is_es(lang) else 'Missing quote number.'}
+    if not to_email:
+        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
+
+    quote = _find_quote_by_number_or_id(number_or_id)
+    if not quote:
+        return {'speak': 'No encontré esa cotización.' if _is_es(lang) else "I couldn't find that quote.", 'redirect_url': url_for('ar.quotes')}
+
+    if not confirm:
+        if _is_es(lang):
+            speak = f"Confirmar: ¿Quieres enviar la cotización {quote.number} a {to_email}? Repite y di confirm=true."
+        else:
+            speak = f"Confirmation needed: email quote {quote.number} to {to_email}? Repeat with confirm=true."
+        return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+
+    items = quote.items.order_by(QuoteItem.id.asc()).all()
+    pdf_bytes = _build_quote_pdf(quote, items)
+
+    subject = f"Quote {quote.number or quote.id}"
+    text_body = message or ('Adjunto la cotización.' if _is_es(lang) else 'Attached is the quote.')
+    html_body = f"<p>{text_body}</p>"
+    sender = (
+        (current_app.config.get('MAIL_DEFAULT_SENDER') or '').strip()
+        or (user.email or '').strip()
+        or 'noreply@example.com'
+    )
+
+    send_email_with_attachments_sync(
+        subject=subject,
+        sender=sender,
+        recipients=[to_email],
+        text_body=text_body,
+        html_body=html_body,
+        attachments=[(f"{quote.number or 'quote'}.pdf", 'application/pdf', pdf_bytes)],
+    )
+
+    return {
+        'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
+        'redirect_url': url_for('ar.view_quote', id=quote.id),
+    }
 
 
 def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
@@ -1041,6 +1453,103 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         {
             'type': 'function',
             'function': {
+                'name': 'create_quote',
+                'description': 'Create a quote for a customer (simple single-line quote).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'customer_name': {'type': 'string'},
+                        'amount': {'type': 'number'},
+                        'description': {'type': 'string'},
+                        'date': {'type': 'string'},
+                        'valid_until': {'type': 'string'},
+                        'tax': {'type': 'number'},
+                        'status': {'type': 'string'},
+                        'terms': {'type': 'string'},
+                        'notes': {'type': 'string'},
+                    },
+                    'required': ['customer_name', 'amount'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'edit_quote',
+                'description': 'Edit a quote by number or id (header fields and optionally simple amount/description).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'customer_name': {'type': 'string'},
+                        'amount': {'type': 'number'},
+                        'description': {'type': 'string'},
+                        'date': {'type': 'string'},
+                        'valid_until': {'type': 'string'},
+                        'tax': {'type': 'number'},
+                        'status': {'type': 'string'},
+                        'terms': {'type': 'string'},
+                        'notes': {'type': 'string'},
+                    },
+                    'required': ['number_or_id'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'delete_quote',
+                'description': 'Delete a quote by number or id. Requires confirm=true to execute.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'confirm': {'type': 'boolean'},
+                    },
+                    'required': ['number_or_id'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'convert_quote_to_invoice',
+                'description': 'Convert a quote to an invoice. Requires confirm=true to execute.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'confirm': {'type': 'boolean'},
+                    },
+                    'required': ['number_or_id'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'email_quote',
+                'description': 'Email a quote PDF to a recipient. Requires confirm=true to execute.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'to_email': {'type': 'string'},
+                        'message': {'type': 'string'},
+                        'confirm': {'type': 'boolean'},
+                    },
+                    'required': ['number_or_id', 'to_email'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
                 'name': 'list_bills',
                 'description': 'List recent bills (accounts payable).',
                 'parameters': {
@@ -1126,6 +1635,7 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         'You can also create customers when asked. '
         'You can also create invoices when asked. '
         'You can also email invoices and record payments when asked. '
+        'You can also create, edit, delete, convert, and email quotes when asked (confirm before delete/convert/email). '
         'If the user mentions a person name while asking for balance, treat it as a CUSTOMER name (not a system user). '
         'It is allowed to provide customer balances and invoice totals from this app. '
         'Only say you cannot access something when there is no suitable tool. '
@@ -1187,6 +1697,16 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_invoice_summary(args, lang)
         if name == 'list_quotes':
             return _tool_list_quotes(args, lang)
+        if name == 'create_quote':
+            return _tool_create_quote(args, lang)
+        if name == 'edit_quote':
+            return _tool_edit_quote(args, lang)
+        if name == 'delete_quote':
+            return _tool_delete_quote(args, lang)
+        if name == 'convert_quote_to_invoice':
+            return _tool_convert_quote_to_invoice(args, lang)
+        if name == 'email_quote':
+            return _tool_email_quote(args, user, lang)
         if name == 'list_bills':
             return _tool_list_bills(args, lang)
         if name == 'list_unread_notifications':
