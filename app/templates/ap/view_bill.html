@@ -1,6 +1,127 @@
 {% extends "base.html" %}
 {% block title %}Bill{% endblock %}
 {% block content %}
-<h3>Bill {{ bill_id }}</h3>
-<p class="text-muted">Bill detail page is being built.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Bill {{ bill.number }}</h3>
+        <div class="text-muted">{{ bill.vendor.name if bill.vendor else '' }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('ap.bills') }}">Back</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('ap.edit_bill', id=bill.id) }}">Edit</a>
+        <a class="btn btn-primary" href="{{ url_for('ap.record_payment', bill_id=bill.id) }}">Pay</a>
+        <form action="{{ url_for('ap.delete_bill', id=bill.id) }}" method="post" class="d-inline">
+            {{ delete_form.hidden_tag() }}
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete bill {{ bill.number }}?');">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between"><span class="text-muted">Status</span>
+                    <span>
+                        {% if bill.status == 'paid' %}
+                            <span class="badge bg-success">Paid</span>
+                        {% elif bill.status == 'overdue' %}
+                            <span class="badge bg-danger">Overdue</span>
+                        {% elif bill.status == 'partial' %}
+                            <span class="badge bg-warning text-dark">Partial</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Open</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between"><span class="text-muted">Date</span><span>{{ bill.date.strftime('%Y-%m-%d') if bill.date else '' }}</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Due</span><span>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</span></div>
+                <hr>
+                <div class="d-flex justify-content-between"><span class="text-muted">Subtotal</span><span>${{ "%0.2f"|format(bill.subtotal or 0) }}</span></div>
+                <div class="d-flex justify-content-between"><span class="text-muted">Tax</span><span>${{ "%0.2f"|format(bill.tax or 0) }}</span></div>
+                <div class="d-flex justify-content-between fw-semibold"><span>Total</span><span>${{ "%0.2f"|format(bill.total or 0) }}</span></div>
+                <div class="d-flex justify-content-between fw-semibold"><span>Balance</span><span>${{ "%0.2f"|format(bill.balance or 0) }}</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8 mb-3">
+        <div class="card shadow-sm">
+            <div class="card-header fw-semibold">Items</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-end">Qty</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.description or (item.product.description if item.product else '') }}</td>
+                                <td class="text-end">{{ item.quantity }}</td>
+                                <td class="text-end">${{ "%0.2f"|format(item.unit_price or 0) }}</td>
+                                <td class="text-end">${{ "%0.2f"|format(item.amount or 0) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4"><div class="text-muted">No items</div></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Payments</div>
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('ap.record_payment', bill_id=bill.id) }}">Record Payment</a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th class="text-end">Amount</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.date.strftime('%Y-%m-%d') if payment.date else '' }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td>{{ payment.payment_method or '' }}</td>
+                        <td>{{ payment.reference or '' }}</td>
+                        <td>{{ payment.notes or '' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4"><div class="text-muted">No payments recorded</div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if bill.notes %}
+<div class="card shadow-sm mt-3">
+    <div class="card-header fw-semibold">Notes</div>
+    <div class="card-body">{{ bill.notes }}</div>
+</div>
+{% endif %}
 {% endblock %}

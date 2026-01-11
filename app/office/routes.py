@@ -1,12 +1,14 @@
 from datetime import datetime, timedelta
+import os
 
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import login_required, current_user
 
 from app import db
 from app.models import Meeting, Notification, Invoice
 from app.office import bp
 from app.office.forms import MeetingForm
+from app.office.ai_assistant import run_assistant
 
 
 @bp.app_context_processor
@@ -178,6 +180,19 @@ def mark_notification_read(id):
     return redirect(request.referrer or url_for('office.notifications'))
 
 
+@bp.route('/assistant/status', methods=['GET'])
+def assistant_status():
+    try:
+        routes_mtime = os.path.getmtime(__file__)
+    except Exception:
+        routes_mtime = None
+    return jsonify({
+        'openai_enabled': bool(current_app.config.get('OPENAI_API_KEY')),
+        'pid': os.getpid(),
+        'routes_mtime': routes_mtime,
+    })
+
+
 @bp.route('/assistant/command', methods=['POST'])
 @login_required
 def assistant_command():
@@ -186,6 +201,19 @@ def assistant_command():
     text = raw_text.lower()
     lang = (payload.get('lang') or '').strip().lower()
     is_es = lang.startswith('es')
+    pid = os.getpid()
+
+    if current_app.config.get('OPENAI_API_KEY'):
+        try:
+            return jsonify(run_assistant(raw_text, lang, current_user))
+        except Exception as e:
+            db.session.rollback()
+            msg = str(e) or 'unknown error'
+            msg = msg.replace('\n', ' ').strip()
+            if len(msg) > 180:
+                msg = msg[:180] + '...'
+            dbg = f" (pid={pid})"
+            return jsonify({'speak': (f'Error de OpenAI: {msg}{dbg}' if is_es else f'OpenAI error: {msg}{dbg}')})
 
     now = datetime.utcnow()
 
@@ -225,4 +253,6 @@ def assistant_command():
     if 'dashboard' in text or (is_es and any(k in text for k in ['tablero', 'panel', 'inicio'])):
         return jsonify({'speak': 'Abriendo tablero.' if is_es else 'Opening dashboard.', 'redirect_url': url_for('main.dashboard')})
 
-    return jsonify({'speak': "No entendí. Prueba: 'reuniones hoy' o 'facturas vencidas'." if is_es else "I didn't understand. Try: 'today's meetings' or 'overdue invoices'."})
+    openai_enabled = bool(current_app.config.get('OPENAI_API_KEY'))
+    dbg = f" (openai={int(openai_enabled)}, pid={pid})"
+    return jsonify({'speak': ("No entendí. Prueba: 'reuniones hoy' o 'facturas vencidas'." if is_es else "I didn't understand. Try: 'today's meetings' or 'overdue invoices'.") + dbg})

@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '.env'))
+load_dotenv(os.path.join(basedir, '.env'), override=True)
+load_dotenv(os.path.join(basedir, 'app', '.env'), override=True)
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -54,3 +55,9 @@ class Config:
     
     # Report configuration
     REPORTS_FOLDER = os.path.join(basedir, 'app/static/reports')
+
+    # OpenAI assistant configuration
+    OPENAI_API_KEY = (os.environ.get('OPENAI_API_KEY') or '').strip() or None
+    OPENAI_MODEL = (os.environ.get('OPENAI_MODEL') or 'gpt-4o-mini').strip()
+    OPENAI_TIMEOUT = int(os.environ.get('OPENAI_TIMEOUT') or 15)
+    OPENAI_MAX_TOKENS = int(os.environ.get('OPENAI_MAX_TOKENS') or 250)

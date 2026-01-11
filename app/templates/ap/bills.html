@@ -1,6 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Bills{% endblock %}
 {% block content %}
-<h3>Bills</h3>
-<p class="text-muted">Accounts Payable bills module is being built.</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Bills</h3>
+        <div class="text-muted">Accounts Payable</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('reports.ap_aging') }}">Aging Report</a>
+        <a class="btn btn-primary" href="{{ url_for('ap.create_bill') }}"><i class="bi bi-file-earmark-plus"></i> New Bill</a>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Vendor</th>
+                        <th>Date</th>
+                        <th>Due Date</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-end">Balance</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bill in bills %}
+                    <tr>
+                        <td>
+                            <a class="text-decoration-none" href="{{ url_for('ap.view_bill', id=bill.id) }}">{{ bill.number }}</a>
+                        </td>
+                        <td>{{ bill.vendor.name if bill.vendor else '' }}</td>
+                        <td>{{ bill.date.strftime('%Y-%m-%d') if bill.date else '' }}</td>
+                        <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(bill.total or 0) }}</td>
+                        <td class="text-end">${{ "%0.2f"|format(bill.balance or 0) }}</td>
+                        <td>
+                            {% if bill.status == 'paid' %}
+                                <span class="badge bg-success">Paid</span>
+                            {% elif bill.status == 'overdue' %}
+                                <span class="badge bg-danger">Overdue</span>
+                            {% elif bill.status == 'partial' %}
+                                <span class="badge bg-warning text-dark">Partial</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Open</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Bill actions">
+                                <a class="btn btn-outline-primary" href="{{ url_for('ap.edit_bill', id=bill.id) }}">Edit</a>
+                                <form action="{{ url_for('ap.delete_bill', id=bill.id) }}" method="post" class="d-inline">
+                                    {{ delete_form.hidden_tag() }}
+                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete bill {{ bill.number }}?');">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <div class="text-muted">No bills found</div>
+                            <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ap.create_bill') }}">Create your first bill</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

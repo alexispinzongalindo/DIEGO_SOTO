@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Create Bill{% endblock %}
+{% block title %}Edit Bill{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-lg-9">
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Create Bill</h5>
-                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ap.bills') }}">Back</a>
+                <h5 class="mb-0">Edit Bill</h5>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ap.view_bill', id=bill.id) }}">Back</a>
             </div>
             <div class="card-body">
                 <form action="" method="post" novalidate>
@@ -43,10 +43,6 @@
                             {% for error in form.vendor_id.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
-                            <div class="form-text">
-                                Need a new vendor?
-                                <a href="{{ url_for('ap.create_vendor') }}">Create one</a>
-                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             {{ form.terms.label(class="form-label") }}
@@ -136,7 +132,7 @@
 
                     <div class="d-flex gap-2">
                         {{ form.submit(class="btn btn-primary") }}
-                        <a class="btn btn-outline-secondary" href="{{ url_for('ap.bills') }}">Cancel</a>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('ap.view_bill', id=bill.id) }}">Cancel</a>
                     </div>
                 </form>
             </div>

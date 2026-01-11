@@ -151,6 +151,7 @@ class BillItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     bill_id = db.Column(db.Integer, db.ForeignKey('bill.id'))
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
+    product = db.relationship('Product')
     description = db.Column(db.String(200))
     quantity = db.Column(db.Numeric(10, 2))
     unit_price = db.Column(db.Numeric(10, 2))
