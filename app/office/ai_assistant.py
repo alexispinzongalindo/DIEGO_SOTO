@@ -263,6 +263,50 @@ def _tool_list_customers(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
     return {'speak': speak, 'redirect_url': url_for('ar.customers')}
 
 
+def _tool_create_customer(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    name = (args.get('name') or '').strip()
+    if not name:
+        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
+
+    existing = _find_customer_by_name(name)
+    if existing:
+        return {
+            'speak': (f'El cliente {existing.name} ya existe.' if _is_es(lang) else f'Customer {existing.name} already exists.'),
+            'redirect_url': url_for('ar.customers'),
+        }
+
+    email = (args.get('email') or '').strip() or None
+    phone = (args.get('phone') or '').strip() or None
+    address = (args.get('address') or '').strip() or None
+    tax_id = (args.get('tax_id') or '').strip() or None
+
+    credit_limit = args.get('credit_limit')
+    credit_limit_val = None
+    if credit_limit is not None and str(credit_limit).strip() != '':
+        try:
+            credit_limit_val = float(credit_limit)
+        except Exception:
+            credit_limit_val = None
+
+    customer = Customer(
+        name=name,
+        email=email,
+        phone=phone,
+        address=address,
+        tax_id=tax_id,
+    )
+    if credit_limit_val is not None:
+        customer.credit_limit = credit_limit_val
+
+    db.session.add(customer)
+    db.session.commit()
+
+    return {
+        'speak': ('Cliente creado.' if _is_es(lang) else 'Customer created.'),
+        'redirect_url': url_for('ar.customers'),
+    }
+
+
 def _tool_customer_balance(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
     name = (args.get('customer_name') or '').strip()
     if not name:
@@ -636,6 +680,26 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         {
             'type': 'function',
             'function': {
+                'name': 'create_customer',
+                'description': 'Create a new customer (client).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'name': {'type': 'string'},
+                        'email': {'type': 'string'},
+                        'phone': {'type': 'string'},
+                        'address': {'type': 'string'},
+                        'tax_id': {'type': 'string'},
+                        'credit_limit': {'type': 'number'},
+                    },
+                    'required': ['name'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
                 'name': 'list_open_invoices',
                 'description': 'List open invoices (balance > 0).',
                 'parameters': {
@@ -755,6 +819,7 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         'You must be concise. '
         'When the user asks about customers, invoices, quotes, bills, meetings, notifications, or documents, '
         'use the provided tools instead of refusing. '
+        'You can also create customers when asked. '
         'If the user mentions a person name while asking for balance, treat it as a CUSTOMER name (not a system user). '
         'It is allowed to provide customer balances and invoice totals from this app. '
         'Only say you cannot access something when there is no suitable tool. '
@@ -800,6 +865,8 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_create_meeting(args, user, lang)
         if name == 'list_customers':
             return _tool_list_customers(args, lang)
+        if name == 'create_customer':
+            return _tool_create_customer(args, lang)
         if name == 'customer_balance':
             return _tool_customer_balance(args, lang)
         if name == 'list_open_invoices':
