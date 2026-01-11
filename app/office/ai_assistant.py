@@ -12,7 +12,7 @@ from flask import current_app, url_for
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Bill, Customer, Invoice, LibraryDocument, Meeting, Notification, Project, Quote, User
+from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Project, Quote, User
 from app.office.library_storage import get_document_abs_path
 
 
@@ -78,6 +78,21 @@ def _find_customer_by_name(name: str) -> Optional[Customer]:
         if cn and all(t in cn for t in tokens):
             return c
     return None
+
+
+def _next_invoice_number() -> str:
+    last = Invoice.query.order_by(Invoice.id.desc()).first()
+    if not last or not last.number:
+        return 'INV-000001'
+    try:
+        raw = (last.number or '').strip().upper()
+        if raw.startswith('INV-'):
+            n = int(raw.split('-', 1)[1])
+        else:
+            n = int(raw)
+        return f"INV-{n + 1:06d}"
+    except Exception:
+        return f"INV-{(last.id + 1):06d}"
 
 
 def _extract_customer_name_for_balance(text: str, lang: str) -> Optional[str]:
@@ -305,6 +320,90 @@ def _tool_create_customer(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
         'speak': ('Cliente creado.' if _is_es(lang) else 'Customer created.'),
         'redirect_url': url_for('ar.customers'),
     }
+
+
+def _tool_create_invoice(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    customer_name = (args.get('customer_name') or '').strip()
+    if not customer_name:
+        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
+
+    amount = args.get('amount')
+    try:
+        amount_val = float(amount)
+    except Exception:
+        amount_val = 0.0
+    if amount_val <= 0:
+        return {'speak': 'Falta el monto.' if _is_es(lang) else 'Missing amount.'}
+
+    customer = _find_customer_by_name(customer_name)
+    if not customer:
+        return {
+            'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.",
+            'redirect_url': url_for('ar.customers'),
+        }
+
+    description = (args.get('description') or '').strip() or ('Servicio' if _is_es(lang) else 'Service')
+
+    inv_date_raw = (args.get('date') or '').strip()
+    inv_date = None
+    if inv_date_raw:
+        try:
+            inv_date = parser.parse(inv_date_raw).date()
+        except Exception:
+            inv_date = None
+    if inv_date is None:
+        inv_date = date.today()
+
+    due_date_raw = (args.get('due_date') or '').strip()
+    due_date = None
+    if due_date_raw:
+        try:
+            due_date = parser.parse(due_date_raw).date()
+        except Exception:
+            due_date = None
+
+    tax = args.get('tax')
+    try:
+        tax_val = float(tax) if tax is not None else 0.0
+    except Exception:
+        tax_val = 0.0
+    tax_val = max(0.0, tax_val)
+
+    subtotal = float(amount_val)
+    total = float(subtotal + tax_val)
+
+    invoice = Invoice(
+        number=_next_invoice_number(),
+        date=inv_date,
+        due_date=due_date,
+        customer_id=customer.id,
+        subtotal=subtotal,
+        tax=tax_val,
+        total=total,
+        status='open',
+        terms=(args.get('terms') or '').strip() or None,
+        notes=(args.get('notes') or '').strip() or None,
+    )
+    db.session.add(invoice)
+    db.session.flush()
+
+    item = InvoiceItem(
+        invoice=invoice,
+        product_id=None,
+        description=description,
+        quantity=1,
+        unit_price=subtotal,
+        amount=subtotal,
+    )
+    db.session.add(item)
+    db.session.commit()
+
+    if _is_es(lang):
+        speak = f"Factura creada para {customer.name} por ${total:,.2f}."
+    else:
+        speak = f"Invoice created for {customer.name} for ${total:,.2f}."
+
+    return {'speak': speak, 'redirect_url': url_for('ar.view_invoice', id=invoice.id)}
 
 
 def _tool_customer_balance(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
@@ -700,6 +799,28 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         {
             'type': 'function',
             'function': {
+                'name': 'create_invoice',
+                'description': 'Create an invoice for a customer (simple single-line invoice).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'customer_name': {'type': 'string'},
+                        'amount': {'type': 'number'},
+                        'description': {'type': 'string'},
+                        'date': {'type': 'string'},
+                        'due_date': {'type': 'string'},
+                        'tax': {'type': 'number'},
+                        'terms': {'type': 'string'},
+                        'notes': {'type': 'string'},
+                    },
+                    'required': ['customer_name', 'amount'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
                 'name': 'list_open_invoices',
                 'description': 'List open invoices (balance > 0).',
                 'parameters': {
@@ -820,6 +941,7 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         'When the user asks about customers, invoices, quotes, bills, meetings, notifications, or documents, '
         'use the provided tools instead of refusing. '
         'You can also create customers when asked. '
+        'You can also create invoices when asked. '
         'If the user mentions a person name while asking for balance, treat it as a CUSTOMER name (not a system user). '
         'It is allowed to provide customer balances and invoice totals from this app. '
         'Only say you cannot access something when there is no suitable tool. '
@@ -867,6 +989,8 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_list_customers(args, lang)
         if name == 'create_customer':
             return _tool_create_customer(args, lang)
+        if name == 'create_invoice':
+            return _tool_create_invoice(args, lang)
         if name == 'customer_balance':
             return _tool_customer_balance(args, lang)
         if name == 'list_open_invoices':
