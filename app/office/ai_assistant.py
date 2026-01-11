@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -20,6 +22,62 @@ def _utc_now() -> datetime:
 
 def _is_es(lang: str) -> bool:
     return (lang or '').strip().lower().startswith('es')
+
+
+def _normalize_name(value: str) -> str:
+    value = (value or '').strip().lower()
+    if not value:
+        return ''
+    value = unicodedata.normalize('NFKD', value)
+    value = ''.join(ch for ch in value if not unicodedata.combining(ch))
+    value = re.sub(r"[^a-z0-9\s]", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    return value
+
+
+def _find_customer_by_name(name: str) -> Optional[Customer]:
+    raw = (name or '').strip()
+    if not raw:
+        return None
+
+    direct = (
+        Customer.query.filter(Customer.name.ilike(f"%{raw}%"))
+        .order_by(Customer.name.asc())
+        .first()
+    )
+    if direct:
+        return direct
+
+    normalized = _normalize_name(raw)
+    if not normalized:
+        return None
+
+    if normalized != raw.lower():
+        alt = (
+            Customer.query.filter(Customer.name.ilike(f"%{normalized}%"))
+            .order_by(Customer.name.asc())
+            .first()
+        )
+        if alt:
+            return alt
+
+    tokens = [t for t in normalized.split(' ') if len(t) >= 2]
+    if not tokens:
+        return None
+
+    q = Customer.query
+    for t in tokens[:4]:
+        q = q.filter(Customer.name.ilike(f"%{t}%"))
+    token_match = q.order_by(Customer.name.asc()).first()
+    if token_match:
+        return token_match
+
+    candidates = Customer.query.order_by(Customer.name.asc()).limit(500).all()
+    for c in candidates:
+        cn = _normalize_name(c.name or '')
+        if cn and all(t in cn for t in tokens):
+            return c
+    return None
 
 
 def _extract_customer_name_for_balance(text: str, lang: str) -> Optional[str]:
@@ -210,11 +268,7 @@ def _tool_customer_balance(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
     if not name:
         return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
 
-    customer = (
-        Customer.query.filter(Customer.name.ilike(f"%{name}%"))
-        .order_by(Customer.name.asc())
-        .first()
-    )
+    customer = _find_customer_by_name(name)
     if not customer:
         return {'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.", 'redirect_url': url_for('ar.customers')}
 
