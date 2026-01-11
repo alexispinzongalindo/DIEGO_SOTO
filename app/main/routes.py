@@ -2,7 +2,7 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.main import bp
-from app.models import Invoice, Quote, Bill, Customer, Vendor, Payment, VendorPayment
+from app.models import Invoice, Quote, Bill, Customer, Vendor, Payment, PurchaseOrder, VendorPayment
 from datetime import datetime, timedelta
 
 @bp.route('/')
@@ -27,6 +27,10 @@ def dashboard():
     recent_invoices = Invoice.query.order_by(Invoice.date.desc()).limit(5).all()
     recent_quotes = Quote.query.order_by(Quote.date.desc()).limit(5).all()
     recent_bills = Bill.query.order_by(Bill.date.desc()).limit(5).all()
+    recent_purchase_orders = PurchaseOrder.query.order_by(PurchaseOrder.date.desc()).limit(5).all()
+
+    purchase_order_count = PurchaseOrder.query.count()
+    draft_po_count = PurchaseOrder.query.filter_by(status='draft').count()
     
     # Calculate total receivables and payables
     total_receivables = db.session.query(db.func.sum(Invoice.total - db.func.coalesce(
@@ -59,6 +63,8 @@ def dashboard():
                          title='Dashboard',
                          customer_count=customer_count,
                          vendor_count=vendor_count,
+                         purchase_order_count=purchase_order_count,
+                         draft_po_count=draft_po_count,
                          total_receivables=total_receivables,
                          total_payables=total_payables,
                          thirty_day_revenue=thirty_day_revenue,
@@ -67,6 +73,7 @@ def dashboard():
                          recent_quotes=recent_quotes,
                          recent_invoices=recent_invoices,
                          recent_bills=recent_bills,
+                         recent_purchase_orders=recent_purchase_orders,
                          today=today)
 
 @bp.route('/search')
