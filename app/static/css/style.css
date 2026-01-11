@@ -2,6 +2,28 @@ body { background-color: #f8f9fa; }
 .card { border-radius: 0.75rem; }
 .footer { border-top: 1px solid #e9ecef; }
 
+.app-navbar {
+  min-height: 56px;
+}
+
+.app-navbar .navbar-brand,
+.app-navbar .nav-link {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.app-navbar .nav-link {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.app-navbar .nav-link .bi,
+.app-navbar .navbar-brand .bi {
+  line-height: 1;
+  transform: translateY(-0.5px);
+}
+
 .ai-assistant-btn {
   position: relative;
   display: inline-flex;
