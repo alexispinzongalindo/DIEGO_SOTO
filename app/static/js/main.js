@@ -18,6 +18,18 @@
     window.speechSynthesis.speak(utter);
   }
 
+  function initTooltips() {
+    if (!window.bootstrap || !window.bootstrap.Tooltip) return;
+    const triggers = Array.prototype.slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    triggers.forEach((el) => {
+      try {
+        new window.bootstrap.Tooltip(el);
+      } catch (e) {
+        // ignore
+      }
+    });
+  }
+
   async function sendCommand(text, lang) {
     const res = await fetch('/office/assistant/command', {
       method: 'POST',
@@ -148,8 +160,12 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initVoice);
+    document.addEventListener('DOMContentLoaded', () => {
+      initTooltips();
+      initVoice();
+    });
   } else {
+    initTooltips();
     initVoice();
   }
 })();
