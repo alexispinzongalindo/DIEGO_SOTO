@@ -9,10 +9,11 @@ from typing import Any, Dict, Optional
 import requests
 from dateutil import parser
 from flask import current_app, url_for
+from fpdf import FPDF
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Project, Quote, User
+from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, Quote, User
 from app.office.library_storage import get_document_abs_path
 
 
@@ -404,6 +405,151 @@ def _tool_create_invoice(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
         speak = f"Invoice created for {customer.name} for ${total:,.2f}."
 
     return {'speak': speak, 'redirect_url': url_for('ar.view_invoice', id=invoice.id)}
+
+
+def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Invoice', ln=True)
+
+    pdf.set_font('Helvetica', '', 11)
+    pdf.cell(0, 6, f"Invoice #: {invoice.number}", ln=True)
+    pdf.cell(0, 6, f"Invoice Date: {invoice.date.strftime('%Y-%m-%d') if invoice.date else ''}", ln=True)
+    pdf.cell(0, 6, f"Due Date: {invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else ''}", ln=True)
+    if invoice.customer:
+        pdf.cell(0, 6, f"Customer: {invoice.customer.name}", ln=True)
+    pdf.ln(4)
+
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(90, 8, 'Description', border=1)
+    pdf.cell(20, 8, 'Qty', border=1, align='R')
+    pdf.cell(30, 8, 'Unit Price', border=1, align='R')
+    pdf.cell(30, 8, 'Amount', border=1, align='R')
+    pdf.ln(8)
+
+    pdf.set_font('Helvetica', '', 10)
+    for item in items:
+        desc = item.description or ''
+        qty = float(item.quantity or 0)
+        unit_price = float(item.unit_price or 0)
+        amount = float(item.amount or 0)
+        pdf.cell(90, 8, (desc[:45] + '...') if len(desc) > 48 else desc, border=1)
+        pdf.cell(20, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
+        pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
+        pdf.ln(8)
+
+    pdf.ln(4)
+    pdf.set_font('Helvetica', '', 11)
+    subtotal = float(invoice.subtotal or 0)
+    tax = float(invoice.tax or 0)
+    total = float(invoice.total or 0)
+    pdf.cell(140, 6, 'Subtotal', align='R')
+    pdf.cell(30, 6, f"${subtotal:,.2f}", ln=True, align='R')
+    pdf.cell(140, 6, 'Tax', align='R')
+    pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(140, 7, 'Total', align='R')
+    pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+
+    out = pdf.output(dest='S')
+    if isinstance(out, str):
+        out = out.encode('latin-1')
+    return out
+
+
+def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    to_email = (args.get('to_email') or '').strip()
+    message = (args.get('message') or '').strip()
+
+    if not number_or_id:
+        return {'speak': 'Falta el número de factura.' if _is_es(lang) else 'Missing invoice number.'}
+    if not to_email:
+        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
+
+    invoice = None
+    if number_or_id.isdigit():
+        invoice = Invoice.query.get(int(number_or_id))
+    if invoice is None:
+        invoice = Invoice.query.filter_by(number=number_or_id).first()
+
+    if invoice is None:
+        return {'speak': 'No encontré esa factura.' if _is_es(lang) else "I couldn't find that invoice.", 'redirect_url': url_for('ar.invoices')}
+
+    items = InvoiceItem.query.filter_by(invoice_id=invoice.id).order_by(InvoiceItem.id.asc()).all()
+    pdf_bytes = _build_invoice_pdf(invoice, items)
+
+    subject = f"Invoice {invoice.number or invoice.id}"
+    text_body = message or ('Adjunto la factura.' if _is_es(lang) else 'Attached is the invoice.')
+    html_body = f"<p>{text_body}</p>"
+    sender = (
+        (current_app.config.get('MAIL_DEFAULT_SENDER') or '').strip()
+        or (user.email or '').strip()
+        or 'noreply@example.com'
+    )
+
+    send_email_with_attachments_sync(
+        subject=subject,
+        sender=sender,
+        recipients=[to_email],
+        text_body=text_body,
+        html_body=html_body,
+        attachments=[(f"{invoice.number or 'invoice'}.pdf", 'application/pdf', pdf_bytes)],
+    )
+
+    return {
+        'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
+        'redirect_url': url_for('ar.view_invoice', id=invoice.id),
+    }
+
+
+def _tool_record_payment(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    customer_name = (args.get('customer_name') or '').strip()
+    if not customer_name:
+        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
+
+    amount = args.get('amount')
+    try:
+        amount_val = float(amount)
+    except Exception:
+        amount_val = 0.0
+    if amount_val <= 0:
+        return {'speak': 'Falta el monto.' if _is_es(lang) else 'Missing amount.'}
+
+    customer = _find_customer_by_name(customer_name)
+    if not customer:
+        return {'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.", 'redirect_url': url_for('ar.customers')}
+
+    pay_date_raw = (args.get('date') or '').strip()
+    pay_date = None
+    if pay_date_raw:
+        try:
+            pay_date = parser.parse(pay_date_raw).date()
+        except Exception:
+            pay_date = None
+    if pay_date is None:
+        pay_date = date.today()
+
+    payment = Payment(
+        date=pay_date,
+        customer_id=customer.id,
+        invoice_id=None,
+        amount=amount_val,
+        payment_method=(args.get('payment_method') or '').strip() or None,
+        reference=(args.get('reference') or '').strip() or None,
+        notes=(args.get('notes') or '').strip() or None,
+    )
+    db.session.add(payment)
+    db.session.commit()
+
+    if _is_es(lang):
+        speak = f"Pago registrado para {customer.name} por ${amount_val:,.2f}."
+    else:
+        speak = f"Payment recorded for {customer.name} for ${amount_val:,.2f}."
+    return {'speak': speak, 'redirect_url': url_for('ar.view_customer', id=customer.id)}
 
 
 def _tool_customer_balance(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
@@ -821,6 +967,43 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         {
             'type': 'function',
             'function': {
+                'name': 'email_invoice',
+                'description': 'Email an invoice PDF to a recipient.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'to_email': {'type': 'string'},
+                        'message': {'type': 'string'},
+                    },
+                    'required': ['number_or_id', 'to_email'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'record_payment',
+                'description': 'Record a customer payment (not tied to a specific invoice).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'customer_name': {'type': 'string'},
+                        'amount': {'type': 'number'},
+                        'date': {'type': 'string'},
+                        'payment_method': {'type': 'string'},
+                        'reference': {'type': 'string'},
+                        'notes': {'type': 'string'},
+                    },
+                    'required': ['customer_name', 'amount'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
                 'name': 'list_open_invoices',
                 'description': 'List open invoices (balance > 0).',
                 'parameters': {
@@ -942,6 +1125,7 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         'use the provided tools instead of refusing. '
         'You can also create customers when asked. '
         'You can also create invoices when asked. '
+        'You can also email invoices and record payments when asked. '
         'If the user mentions a person name while asking for balance, treat it as a CUSTOMER name (not a system user). '
         'It is allowed to provide customer balances and invoice totals from this app. '
         'Only say you cannot access something when there is no suitable tool. '
@@ -991,6 +1175,10 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_create_customer(args, lang)
         if name == 'create_invoice':
             return _tool_create_invoice(args, lang)
+        if name == 'email_invoice':
+            return _tool_email_invoice(args, user, lang)
+        if name == 'record_payment':
+            return _tool_record_payment(args, lang)
         if name == 'customer_balance':
             return _tool_customer_balance(args, lang)
         if name == 'list_open_invoices':
