@@ -99,6 +99,19 @@
     let pendingQuestions = [];
     let collectedAnswers = [];
     let lastIntent = '';
+    let awaitingConfirm = false;
+    let confirmCommandText = '';
+    let confirmLang = '';
+
+    function isYes(text) {
+      const t = (text || '').trim().toLowerCase();
+      return t === 'yes' || t === 'y' || t === 'si' || t === 'sí' || t === 'ok' || t === 'okay' || t === 'confirm' || t === 'confirmar';
+    }
+
+    function isNo(text) {
+      const t = (text || '').trim().toLowerCase();
+      return t === 'no' || t === 'n' || t === 'cancel' || t === 'cancelar';
+    }
 
     function extractNumberedQuestions(text) {
       if (!text) return [];
@@ -140,6 +153,19 @@
         const speakText = data.speak || '';
         responseEl.value = speakText;
         statusEl.textContent = 'Done.';
+        if (data.needs_confirm) {
+          awaitingConfirm = true;
+          confirmLang = activeLang;
+          confirmCommandText = `${finalText} confirm=true`;
+          statusEl.textContent = 'Confirm?';
+          speak(speakText, activeLang, () => {
+            setTimeout(() => {
+              startListening(true);
+            }, 800);
+          });
+          return;
+        }
+
         speak(speakText, activeLang);
         if (data.redirect_url) {
           setTimeout(() => {
@@ -195,6 +221,53 @@
     recognition.onresult = async (event) => {
       const text = event.results[0][0].transcript;
       transcriptEl.value = text;
+
+      if (awaitingConfirm) {
+        if (isYes(text)) {
+          awaitingConfirm = false;
+          const activeLang = confirmLang || resolveLang();
+          statusEl.textContent = 'Thinking...';
+          busy = true;
+          try {
+            const data = await sendCommand(confirmCommandText, activeLang);
+            const speakText = data.speak || '';
+            responseEl.value = speakText;
+            statusEl.textContent = 'Done.';
+            speak(speakText, activeLang);
+            if (data.redirect_url) {
+              setTimeout(() => {
+                window.location.href = data.redirect_url;
+              }, 800);
+            }
+          } catch (e) {
+            statusEl.textContent = 'Error. Try again.';
+          } finally {
+            busy = false;
+          }
+          return;
+        }
+
+        if (isNo(text)) {
+          awaitingConfirm = false;
+          confirmCommandText = '';
+          confirmLang = '';
+          const activeLang = confirmLang || resolveLang();
+          const msg = (activeLang || '').toLowerCase().startsWith('es') ? 'Cancelado.' : 'Cancelled.';
+          responseEl.value = msg;
+          statusEl.textContent = 'Done.';
+          speak(msg, activeLang);
+          return;
+        }
+
+        statusEl.textContent = 'Say yes or no.';
+        const activeLang = confirmLang || resolveLang();
+        speak((activeLang || '').toLowerCase().startsWith('es') ? 'Di sí o no.' : 'Say yes or no.', activeLang, () => {
+          setTimeout(() => {
+            startListening(true);
+          }, 600);
+        });
+        return;
+      }
 
       if (collecting) {
         const currentQ = pendingQuestions.shift();

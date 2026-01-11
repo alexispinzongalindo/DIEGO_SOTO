@@ -13,7 +13,7 @@ from fpdf import FPDF
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, Quote, QuoteItem, User
+from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, PurchaseOrder, PurchaseOrderItem, Quote, QuoteItem, User, Vendor
 from app.office.library_storage import get_document_abs_path
 
 
@@ -109,6 +109,15 @@ def _next_quote_number() -> str:
         return f"Q-{n + 1:06d}"
     except Exception:
         return f"Q-{(last.id + 1):06d}"
+
+
+def _find_purchase_order_by_number_or_id(number_or_id: str) -> Optional[PurchaseOrder]:
+    raw = (number_or_id or '').strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        return PurchaseOrder.query.get(int(raw))
+    return PurchaseOrder.query.filter_by(number=raw).first()
 
 
 def _extract_customer_name_for_balance(text: str, lang: str) -> Optional[str]:
@@ -467,6 +476,64 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
     pdf.set_font('Helvetica', 'B', 11)
     pdf.cell(140, 7, 'Total', align='R')
+    pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+
+    out = pdf.output(dest='S')
+    if isinstance(out, str):
+        out = out.encode('latin-1')
+    return out
+
+
+def _build_purchase_order_pdf(po: PurchaseOrder, items: list[PurchaseOrderItem]) -> bytes:
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Purchase Order', ln=True)
+
+    pdf.set_font('Helvetica', '', 11)
+    pdf.cell(0, 6, f"PO #: {po.number}", ln=True)
+    pdf.cell(0, 6, f"PO Date: {po.date.strftime('%Y-%m-%d') if po.date else ''}", ln=True)
+    if po.po_type == 'vendor' and po.vendor_id:
+        vendor = Vendor.query.get(po.vendor_id)
+        if vendor:
+            pdf.cell(0, 6, f"Vendor: {vendor.name}", ln=True)
+    if po.po_type == 'customer' and po.customer_id:
+        customer = Customer.query.get(po.customer_id)
+        if customer:
+            pdf.cell(0, 6, f"Customer: {customer.name}", ln=True)
+    pdf.ln(4)
+
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(110, 8, 'Description', border=1)
+    pdf.cell(20, 8, 'Qty', border=1, align='R')
+    pdf.cell(30, 8, 'Unit Price', border=1, align='R')
+    pdf.cell(30, 8, 'Amount', border=1, align='R')
+    pdf.ln(8)
+
+    pdf.set_font('Helvetica', '', 10)
+    for item in items:
+        desc = item.description or ''
+        qty = float(item.quantity or 0)
+        unit_price = float(item.unit_price or 0)
+        amount = float(item.amount or 0)
+        pdf.cell(110, 8, (desc[:55] + '...') if len(desc) > 58 else desc, border=1)
+        pdf.cell(20, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
+        pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
+        pdf.ln(8)
+
+    pdf.ln(4)
+    pdf.set_font('Helvetica', '', 11)
+    subtotal = float(po.subtotal or 0)
+    tax = float(po.tax or 0)
+    total = float(po.total or 0)
+    pdf.cell(160, 6, 'Subtotal', align='R')
+    pdf.cell(30, 6, f"${subtotal:,.2f}", ln=True, align='R')
+    pdf.cell(160, 6, 'Tax', align='R')
+    pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(160, 7, 'Total', align='R')
     pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
 
     out = pdf.output(dest='S')
@@ -840,10 +907,10 @@ def _tool_email_quote(args: Dict[str, Any], user: User, lang: str) -> Dict[str, 
 
     if not confirm:
         if _is_es(lang):
-            speak = f"Confirmar: ¿Quieres enviar la cotización {quote.number} a {to_email}? Repite y di confirm=true."
+            speak = f"Confirmar: ¿Quieres enviar la cotización {quote.number} a {to_email}?"
         else:
-            speak = f"Confirmation needed: email quote {quote.number} to {to_email}? Repeat with confirm=true."
-        return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+            speak = f"Confirmation needed: email quote {quote.number} to {to_email}?"
+        return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id), 'needs_confirm': True}
 
     items = quote.items.order_by(QuoteItem.id.asc()).all()
     pdf_bytes = _build_quote_pdf(quote, items)
@@ -876,6 +943,7 @@ def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str
     number_or_id = (args.get('number_or_id') or '').strip()
     to_email = (args.get('to_email') or '').strip()
     message = (args.get('message') or '').strip()
+    confirm = bool(args.get('confirm'))
 
     if not number_or_id:
         return {'speak': 'Falta el número de factura.' if _is_es(lang) else 'Missing invoice number.'}
@@ -890,6 +958,13 @@ def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str
 
     if invoice is None:
         return {'speak': 'No encontré esa factura.' if _is_es(lang) else "I couldn't find that invoice.", 'redirect_url': url_for('ar.invoices')}
+
+    if not confirm:
+        if _is_es(lang):
+            speak = f"Confirmar: ¿Quieres enviar la factura {invoice.number} a {to_email}?"
+        else:
+            speak = f"Confirmation needed: email invoice {invoice.number} to {to_email}?"
+        return {'speak': speak, 'redirect_url': url_for('ar.view_invoice', id=invoice.id), 'needs_confirm': True}
 
     items = InvoiceItem.query.filter_by(invoice_id=invoice.id).order_by(InvoiceItem.id.asc()).all()
     pdf_bytes = _build_invoice_pdf(invoice, items)
@@ -915,6 +990,55 @@ def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str
     return {
         'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
         'redirect_url': url_for('ar.view_invoice', id=invoice.id),
+    }
+
+
+def _tool_email_purchase_order(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
+    number_or_id = (args.get('number_or_id') or '').strip()
+    to_email = (args.get('to_email') or '').strip()
+    message = (args.get('message') or '').strip()
+    confirm = bool(args.get('confirm'))
+
+    if not number_or_id:
+        return {'speak': 'Falta el número de orden de compra.' if _is_es(lang) else 'Missing purchase order number.'}
+    if not to_email:
+        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
+
+    po = _find_purchase_order_by_number_or_id(number_or_id)
+    if not po:
+        return {'speak': 'No encontré esa orden de compra.' if _is_es(lang) else "I couldn't find that purchase order.", 'redirect_url': url_for('po.purchase_orders')}
+
+    if not confirm:
+        if _is_es(lang):
+            speak = f"Confirmar: ¿Quieres enviar la orden de compra {po.number} a {to_email}?"
+        else:
+            speak = f"Confirmation needed: email purchase order {po.number} to {to_email}?"
+        return {'speak': speak, 'redirect_url': url_for('po.view_purchase_order', id=po.id), 'needs_confirm': True}
+
+    items = PurchaseOrderItem.query.filter_by(purchase_order_id=po.id).order_by(PurchaseOrderItem.id.asc()).all()
+    pdf_bytes = _build_purchase_order_pdf(po, items)
+
+    subject = f"Purchase Order {po.number or po.id}"
+    text_body = message or ('Adjunto la orden de compra.' if _is_es(lang) else 'Attached is the purchase order.')
+    html_body = f"<p>{text_body}</p>"
+    sender = (
+        (current_app.config.get('MAIL_DEFAULT_SENDER') or '').strip()
+        or (user.email or '').strip()
+        or 'noreply@example.com'
+    )
+
+    send_email_with_attachments_sync(
+        subject=subject,
+        sender=sender,
+        recipients=[to_email],
+        text_body=text_body,
+        html_body=html_body,
+        attachments=[(f"{po.number or 'purchase-order'}.pdf", 'application/pdf', pdf_bytes)],
+    )
+
+    return {
+        'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
+        'redirect_url': url_for('po.view_purchase_order', id=po.id),
     }
 
 
@@ -1387,6 +1511,25 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                         'number_or_id': {'type': 'string'},
                         'to_email': {'type': 'string'},
                         'message': {'type': 'string'},
+                        'confirm': {'type': 'boolean'},
+                    },
+                    'required': ['number_or_id', 'to_email'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'email_purchase_order',
+                'description': 'Email a purchase order (PO) PDF to a recipient.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'to_email': {'type': 'string'},
+                        'message': {'type': 'string'},
+                        'confirm': {'type': 'boolean'},
                     },
                     'required': ['number_or_id', 'to_email'],
                     'additionalProperties': False,
@@ -1687,6 +1830,8 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_create_invoice(args, lang)
         if name == 'email_invoice':
             return _tool_email_invoice(args, user, lang)
+        if name == 'email_purchase_order':
+            return _tool_email_purchase_order(args, user, lang)
         if name == 'record_payment':
             return _tool_record_payment(args, lang)
         if name == 'customer_balance':
