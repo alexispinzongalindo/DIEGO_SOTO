@@ -81,6 +81,51 @@ def _find_customer_by_name(name: str) -> Optional[Customer]:
     return None
 
 
+def _find_vendor_by_name(name: str) -> Optional[Vendor]:
+    raw = (name or '').strip()
+    if not raw:
+        return None
+
+    direct = (
+        Vendor.query.filter(Vendor.name.ilike(f"%{raw}%"))
+        .order_by(Vendor.name.asc())
+        .first()
+    )
+    if direct:
+        return direct
+
+    normalized = _normalize_name(raw)
+    if not normalized:
+        return None
+
+    if normalized != raw.lower():
+        alt = (
+            Vendor.query.filter(Vendor.name.ilike(f"%{normalized}%"))
+            .order_by(Vendor.name.asc())
+            .first()
+        )
+        if alt:
+            return alt
+
+    tokens = [t for t in normalized.split(' ') if len(t) >= 2]
+    if not tokens:
+        return None
+
+    q = Vendor.query
+    for t in tokens[:4]:
+        q = q.filter(Vendor.name.ilike(f"%{t}%"))
+    token_match = q.order_by(Vendor.name.asc()).first()
+    if token_match:
+        return token_match
+
+    candidates = Vendor.query.order_by(Vendor.name.asc()).limit(500).all()
+    for v in candidates:
+        vn = _normalize_name(v.name or '')
+        if vn and all(t in vn for t in tokens):
+            return v
+    return None
+
+
 def _next_invoice_number() -> str:
     last = Invoice.query.order_by(Invoice.id.desc()).first()
     if not last or not last.number:
@@ -893,17 +938,36 @@ def _tool_convert_quote_to_invoice(args: Dict[str, Any], lang: str) -> Dict[str,
 def _tool_email_quote(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
     number_or_id = (args.get('number_or_id') or '').strip()
     to_email = (args.get('to_email') or '').strip()
+    to_name = (args.get('to_name') or '').strip()
     message = (args.get('message') or '').strip()
     confirm = bool(args.get('confirm'))
+    save_contact = bool(args.get('save_contact'))
 
     if not number_or_id:
         return {'speak': 'Falta el número de cotización.' if _is_es(lang) else 'Missing quote number.'}
-    if not to_email:
-        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
 
     quote = _find_quote_by_number_or_id(number_or_id)
     if not quote:
         return {'speak': 'No encontré esa cotización.' if _is_es(lang) else "I couldn't find that quote.", 'redirect_url': url_for('ar.quotes')}
+
+    if not to_email and quote.customer and quote.customer.email:
+        to_email = (quote.customer.email or '').strip()
+
+    if not to_email:
+        contact_name = (quote.customer.name if quote.customer else '').strip() or (quote.number or number_or_id)
+        if _is_es(lang):
+            speak = (
+                f"Necesito el correo para enviar la cotización {quote.number}.\n"
+                f"1. ¿Cuál es el correo de {contact_name}?\n"
+                "2. ¿Quieres guardarlo en el perfil del cliente? (sí/no)"
+            )
+        else:
+            speak = (
+                f"I need an email address to send quote {quote.number}.\n"
+                f"1. What is {contact_name}'s email?\n"
+                "2. Do you want me to save it on the customer profile? (yes/no)"
+            )
+        return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
 
     if not confirm:
         if _is_es(lang):
@@ -933,6 +997,12 @@ def _tool_email_quote(args: Dict[str, Any], user: User, lang: str) -> Dict[str, 
         attachments=[(f"{quote.number or 'quote'}.pdf", 'application/pdf', pdf_bytes)],
     )
 
+    if save_contact and quote.customer and to_email:
+        current = (quote.customer.email or '').strip()
+        if current != to_email:
+            quote.customer.email = to_email
+            db.session.commit()
+
     return {
         'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
         'redirect_url': url_for('ar.view_quote', id=quote.id),
@@ -942,13 +1012,13 @@ def _tool_email_quote(args: Dict[str, Any], user: User, lang: str) -> Dict[str, 
 def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
     number_or_id = (args.get('number_or_id') or '').strip()
     to_email = (args.get('to_email') or '').strip()
+    to_name = (args.get('to_name') or '').strip()
     message = (args.get('message') or '').strip()
     confirm = bool(args.get('confirm'))
+    save_contact = bool(args.get('save_contact'))
 
     if not number_or_id:
         return {'speak': 'Falta el número de factura.' if _is_es(lang) else 'Missing invoice number.'}
-    if not to_email:
-        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
 
     invoice = None
     if number_or_id.isdigit():
@@ -958,6 +1028,30 @@ def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str
 
     if invoice is None:
         return {'speak': 'No encontré esa factura.' if _is_es(lang) else "I couldn't find that invoice.", 'redirect_url': url_for('ar.invoices')}
+
+    if not to_email and to_name:
+        customer = _find_customer_by_name(to_name)
+        if customer and customer.email:
+            to_email = (customer.email or '').strip()
+
+    if not to_email and invoice.customer and invoice.customer.email:
+        to_email = (invoice.customer.email or '').strip()
+
+    if not to_email:
+        contact_name = (invoice.customer.name if invoice.customer else '').strip() or (invoice.number or number_or_id)
+        if _is_es(lang):
+            speak = (
+                f"Necesito el correo para enviar la factura {invoice.number}.\n"
+                f"1. ¿Cuál es el correo de {contact_name}?\n"
+                "2. ¿Quieres guardarlo en el perfil del cliente? (sí/no)"
+            )
+        else:
+            speak = (
+                f"I need an email address to send invoice {invoice.number}.\n"
+                f"1. What is {contact_name}'s email?\n"
+                "2. Do you want me to save it on the customer profile? (yes/no)"
+            )
+        return {'speak': speak, 'redirect_url': url_for('ar.view_invoice', id=invoice.id)}
 
     if not confirm:
         if _is_es(lang):
@@ -987,6 +1081,12 @@ def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str
         attachments=[(f"{invoice.number or 'invoice'}.pdf", 'application/pdf', pdf_bytes)],
     )
 
+    if save_contact and invoice.customer and to_email:
+        current = (invoice.customer.email or '').strip()
+        if current != to_email:
+            invoice.customer.email = to_email
+            db.session.commit()
+
     return {
         'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
         'redirect_url': url_for('ar.view_invoice', id=invoice.id),
@@ -996,17 +1096,50 @@ def _tool_email_invoice(args: Dict[str, Any], user: User, lang: str) -> Dict[str
 def _tool_email_purchase_order(args: Dict[str, Any], user: User, lang: str) -> Dict[str, Any]:
     number_or_id = (args.get('number_or_id') or '').strip()
     to_email = (args.get('to_email') or '').strip()
+    to_name = (args.get('to_name') or '').strip()
     message = (args.get('message') or '').strip()
     confirm = bool(args.get('confirm'))
+    save_contact = bool(args.get('save_contact'))
 
     if not number_or_id:
         return {'speak': 'Falta el número de orden de compra.' if _is_es(lang) else 'Missing purchase order number.'}
-    if not to_email:
-        return {'speak': 'Falta el correo.' if _is_es(lang) else 'Missing recipient email.'}
 
     po = _find_purchase_order_by_number_or_id(number_or_id)
     if not po:
         return {'speak': 'No encontré esa orden de compra.' if _is_es(lang) else "I couldn't find that purchase order.", 'redirect_url': url_for('po.purchase_orders')}
+
+    po_customer = Customer.query.get(po.customer_id) if po.customer_id else None
+    po_vendor = Vendor.query.get(po.vendor_id) if po.vendor_id else None
+    po_contact = po_vendor if po.po_type == 'vendor' else po_customer
+
+    if not to_email and to_name:
+        if po.po_type == 'vendor':
+            vendor = _find_vendor_by_name(to_name)
+            if vendor and vendor.email:
+                to_email = (vendor.email or '').strip()
+        else:
+            customer = _find_customer_by_name(to_name)
+            if customer and customer.email:
+                to_email = (customer.email or '').strip()
+
+    if not to_email and po_contact and po_contact.email:
+        to_email = (po_contact.email or '').strip()
+
+    if not to_email:
+        contact_name = (po_contact.name if po_contact else '').strip() or (po.number or number_or_id)
+        if _is_es(lang):
+            speak = (
+                f"Necesito el correo para enviar la orden de compra {po.number}.\n"
+                f"1. ¿Cuál es el correo de {contact_name}?\n"
+                "2. ¿Quieres guardarlo en el perfil? (sí/no)"
+            )
+        else:
+            speak = (
+                f"I need an email address to send purchase order {po.number}.\n"
+                f"1. What is {contact_name}'s email?\n"
+                "2. Do you want me to save it on the profile? (yes/no)"
+            )
+        return {'speak': speak, 'redirect_url': url_for('po.view_purchase_order', id=po.id)}
 
     if not confirm:
         if _is_es(lang):
@@ -1035,6 +1168,12 @@ def _tool_email_purchase_order(args: Dict[str, Any], user: User, lang: str) -> D
         html_body=html_body,
         attachments=[(f"{po.number or 'purchase-order'}.pdf", 'application/pdf', pdf_bytes)],
     )
+
+    if save_contact and po_contact and to_email:
+        current = (po_contact.email or '').strip()
+        if current != to_email:
+            po_contact.email = to_email
+            db.session.commit()
 
     return {
         'speak': 'Correo enviado.' if _is_es(lang) else 'Email sent.',
@@ -1510,10 +1649,32 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                     'properties': {
                         'number_or_id': {'type': 'string'},
                         'to_email': {'type': 'string'},
+                        'to_name': {'type': 'string'},
                         'message': {'type': 'string'},
                         'confirm': {'type': 'boolean'},
+                        'save_contact': {'type': 'boolean'},
                     },
-                    'required': ['number_or_id', 'to_email'],
+                    'required': ['number_or_id'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'email_quote',
+                'description': 'Email a quote PDF to a recipient.',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'number_or_id': {'type': 'string'},
+                        'to_email': {'type': 'string'},
+                        'to_name': {'type': 'string'},
+                        'message': {'type': 'string'},
+                        'confirm': {'type': 'boolean'},
+                        'save_contact': {'type': 'boolean'},
+                    },
+                    'required': ['number_or_id'],
                     'additionalProperties': False,
                 },
             },
@@ -1528,10 +1689,12 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                     'properties': {
                         'number_or_id': {'type': 'string'},
                         'to_email': {'type': 'string'},
+                        'to_name': {'type': 'string'},
                         'message': {'type': 'string'},
                         'confirm': {'type': 'boolean'},
+                        'save_contact': {'type': 'boolean'},
                     },
-                    'required': ['number_or_id', 'to_email'],
+                    'required': ['number_or_id'],
                     'additionalProperties': False,
                 },
             },
@@ -1668,24 +1831,6 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                         'confirm': {'type': 'boolean'},
                     },
                     'required': ['number_or_id'],
-                    'additionalProperties': False,
-                },
-            },
-        },
-        {
-            'type': 'function',
-            'function': {
-                'name': 'email_quote',
-                'description': 'Email a quote PDF to a recipient. Requires confirm=true to execute.',
-                'parameters': {
-                    'type': 'object',
-                    'properties': {
-                        'number_or_id': {'type': 'string'},
-                        'to_email': {'type': 'string'},
-                        'message': {'type': 'string'},
-                        'confirm': {'type': 'boolean'},
-                    },
-                    'required': ['number_or_id', 'to_email'],
                     'additionalProperties': False,
                 },
             },
