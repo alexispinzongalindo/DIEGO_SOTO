@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: diego-soto-associates
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: python render_predeploy.py
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.7
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: diego-soto-associates-db
+          property: connectionString
+      - key: ENABLE_REGISTRATION
+        value: "false"
+      - key: OWNER_USERNAME
+        value: admin
+      - key: OWNER_EMAIL
+        value: admin@example.com
+      - key: OWNER_PASSWORD
+        generateValue: true
+
+databases:
+  - name: diego-soto-associates-db
+    plan: starter
+    databaseName: diego_soto
+    user: diego_soto

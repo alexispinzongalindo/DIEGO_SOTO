@@ -32,6 +32,8 @@
 
   function initVoice() {
     const startBtn = document.getElementById('voiceStartBtn');
+    const micBtn = document.getElementById('voiceMicBtn');
+    const modalEl = document.getElementById('voiceAssistantModal');
     const statusEl = document.getElementById('voiceStatus');
     const transcriptEl = document.getElementById('voiceTranscript');
     const responseEl = document.getElementById('voiceResponse');
@@ -73,7 +75,7 @@
 
     let busy = false;
 
-    startBtn.addEventListener('click', () => {
+    function startListening() {
       if (busy) return;
       transcriptEl.value = '';
       responseEl.value = '';
@@ -84,7 +86,31 @@
       } catch (e) {
         // ignore
       }
+    }
+
+    startBtn.addEventListener('click', () => {
+      startListening();
     });
+
+    if (micBtn) {
+      micBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') {
+          e.stopImmediatePropagation();
+        }
+
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+          try {
+            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+          } catch (err) {
+            // ignore
+          }
+        }
+
+        startListening();
+      });
+    }
 
     recognition.onresult = async (event) => {
       const text = event.results[0][0].transcript;
