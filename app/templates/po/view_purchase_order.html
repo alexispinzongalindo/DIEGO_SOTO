@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Purchase Order {{ purchase_order.number }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Purchase Order {{ purchase_order.number }}</h3>
+        <div class="text-muted">{{ purchase_order.po_type|capitalize }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('po.edit_purchase_order', id=purchase_order.id) }}">Edit</a>
+        <form action="{{ url_for('po.delete_purchase_order', id=purchase_order.id) }}" method="post" class="d-inline">
+            {{ delete_form.hidden_tag() }}
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Delete PO {{ purchase_order.number }}?');">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div><strong>Date:</strong> {{ purchase_order.date.strftime('%Y-%m-%d') if purchase_order.date else '' }}</div>
+                <div><strong>Status:</strong> {{ purchase_order.status }}</div>
+                <div class="mt-2">
+                    <strong>Vendor/Customer:</strong>
+                    {% if purchase_order.vendor %}{{ purchase_order.vendor.name }}{% elif purchase_order.customer %}{{ purchase_order.customer.name }}{% endif %}
+                </div>
+                {% if purchase_order.terms %}<div class="mt-2"><strong>Terms:</strong> {{ purchase_order.terms }}</div>{% endif %}
+                {% if purchase_order.notes %}<div class="mt-2"><strong>Notes:</strong><div class="text-muted">{{ purchase_order.notes }}</div></div>{% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Description</th>
+                                <th class="text-end">Qty</th>
+                                <th class="text-end">Unit Price</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ item.description }}</td>
+                                <td class="text-end">{{ "%0.2f"|format(item.quantity or 0) }}</td>
+                                <td class="text-end">${{ "%0.2f"|format(item.unit_price or 0) }}</td>
+                                <td class="text-end">${{ "%0.2f"|format(item.amount or 0) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <div>Subtotal: ${{ "%0.2f"|format(purchase_order.subtotal or 0) }}</div>
+                <div>Tax: ${{ "%0.2f"|format(purchase_order.tax or 0) }}</div>
+                <div class="fw-bold">Total: ${{ "%0.2f"|format(purchase_order.total or 0) }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -48,6 +48,7 @@ class Customer(db.Model):
     invoices = db.relationship('Invoice', backref='customer', lazy='dynamic')
     quotes = db.relationship('Quote', backref='customer', lazy='dynamic')
     payments = db.relationship('Payment', backref='customer', lazy='dynamic')
+    purchase_orders = db.relationship('PurchaseOrder', backref='customer', lazy='dynamic')
 
 class Vendor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -59,6 +60,7 @@ class Vendor(db.Model):
     account_number = db.Column(db.String(30))
     bills = db.relationship('Bill', backref='vendor', lazy='dynamic')
     payments = db.relationship('VendorPayment', backref='vendor', lazy='dynamic')
+    purchase_orders = db.relationship('PurchaseOrder', backref='vendor', lazy='dynamic')
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -132,6 +134,31 @@ class QuoteItem(db.Model):
     quote_id = db.Column(db.Integer, db.ForeignKey('quote.id'))
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'))
     product = db.relationship('Product')
+    description = db.Column(db.String(200))
+    quantity = db.Column(db.Numeric(10, 2))
+    unit_price = db.Column(db.Numeric(10, 2))
+    amount = db.Column(db.Numeric(10, 2))
+
+
+class PurchaseOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.String(20), unique=True, index=True)
+    po_type = db.Column(db.String(20), default='vendor')  # vendor, customer
+    date = db.Column(db.Date, index=True, default=datetime.utcnow)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'))
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    subtotal = db.Column(db.Numeric(10, 2))
+    tax = db.Column(db.Numeric(10, 2))
+    total = db.Column(db.Numeric(10, 2))
+    status = db.Column(db.String(20), default='draft')  # draft, sent, closed
+    terms = db.Column(db.String(50))
+    notes = db.Column(db.Text)
+    items = db.relationship('PurchaseOrderItem', backref='purchase_order', lazy='dynamic')
+
+
+class PurchaseOrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    purchase_order_id = db.Column(db.Integer, db.ForeignKey('purchase_order.id'))
     description = db.Column(db.String(200))
     quantity = db.Column(db.Numeric(10, 2))
     unit_price = db.Column(db.Numeric(10, 2))

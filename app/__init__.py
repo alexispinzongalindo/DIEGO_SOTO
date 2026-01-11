@@ -38,6 +38,9 @@ def create_app(config_class=Config):
     from app.office import bp as office_bp
     app.register_blueprint(office_bp, url_prefix='/office')
 
+    from app.purchase_orders import bp as po_bp
+    app.register_blueprint(po_bp, url_prefix='/po')
+
     with app.app_context():
         database_uri = (app.config.get('SQLALCHEMY_DATABASE_URI') or '').strip().lower()
         if database_uri.startswith('sqlite:'):
