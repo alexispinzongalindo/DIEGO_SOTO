@@ -182,7 +182,7 @@
                                 <td>{{ invoice.number }}</td>
                                 <td>{{ invoice.customer.name|truncate(20) }}</td>
                                 <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ invoice.due_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}</td>
                                 <td class="text-end">${{ "%0.2f"|format(invoice.total) }}</td>
                                 <td>
                                     {% if invoice.status == 'paid' %}
@@ -286,7 +286,7 @@
                                 <td>{{ bill.number }}</td>
                                 <td>{{ bill.vendor.name|truncate(20) }}</td>
                                 <td>{{ bill.date.strftime('%Y-%m-%d') }}</td>
-                                <td>{{ bill.due_date.strftime('%Y-%m-%d') }}</td>
+                                <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</td>
                                 <td class="text-end">${{ "%0.2f"|format(bill.total) }}</td>
                                 <td>
                                     {% if bill.status == 'paid' %}
@@ -379,7 +379,7 @@
             </div>
             <div class="card-body p-0">
                 <div class="list-group list-group-flush">
-                    {% for invoice in recent_invoices if invoice.due_date >= today %}
+                    {% for invoice in recent_invoices if invoice.due_date and invoice.due_date >= today %}
                     <a href="{{ url_for('ar.view_invoice', id=invoice.id) }}" class="list-group-item list-group-item-action">
                         <div class="d-flex w-100 justify-content-between">
                             <h6 class="mb-1">Invoice #{{ invoice.number }}</h6>
