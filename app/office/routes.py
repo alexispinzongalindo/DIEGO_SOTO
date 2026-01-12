@@ -430,6 +430,12 @@ def notifications():
     return render_template('office/notifications.html', title='Notifications', notifications=notif_list)
 
 
+@bp.route('/instructions')
+@login_required
+def instructions():
+    return render_template('office/instructions.html', title='Instructions')
+
+
 @bp.route('/notification/<int:id>/read', methods=['POST'])
 @login_required
 def mark_notification_read(id):
