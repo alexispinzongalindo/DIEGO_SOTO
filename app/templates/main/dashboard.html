@@ -27,23 +27,6 @@
     </div>
     
     <div class="col-md-3">
-        <div class="card bg-success text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">30-Day Revenue</h6>
-                        <h2 class="mb-0">${{ "%0.2f"|format(thirty_day_revenue) }}</h2>
-                    </div>
-                    <i class="bi bi-graph-up fs-1"></i>
-                </div>
-                <div class="mt-2">
-                    <span class="small">Revenue from last 30 days</span>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
         <div class="card bg-warning text-dark">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
@@ -61,23 +44,6 @@
                 <a href="{{ url_for('ap.bills') }}" class="text-dark text-decoration-none">
                     View Payables <i class="bi bi-arrow-right"></i>
                 </a>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-md-3">
-        <div class="card bg-info text-white">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="card-title mb-1">30-Day Profit</h6>
-                        <h2 class="mb-0">${{ "%0.2f"|format(thirty_day_profit) }}</h2>
-                    </div>
-                    <i class="bi bi-cash-stack fs-1"></i>
-                </div>
-                <div class="mt-2">
-                    <span class="small">Profit from last 30 days</span>
-                </div>
             </div>
         </div>
     </div>
