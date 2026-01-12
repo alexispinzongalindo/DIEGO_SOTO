@@ -53,13 +53,21 @@ def dashboard():
     
     # Get recent invoices and bills
     recent_invoices = Invoice.query.order_by(Invoice.date.desc()).limit(5).all()
-    recent_quotes = Quote.query.order_by(Quote.date.desc()).limit(5).all()
+    try:
+        recent_quotes = Quote.query.order_by(Quote.date.desc()).limit(5).all()
+    except Exception:
+        db.session.rollback()
+        recent_quotes = []
     recent_bills = Bill.query.order_by(Bill.date.desc()).limit(5).all()
     recent_purchase_orders = PurchaseOrder.query.order_by(PurchaseOrder.date.desc()).limit(5).all()
 
-    pending_quotes = Quote.query.filter(Quote.status.in_(['draft', 'sent']))\
-        .order_by(Quote.due_date.asc().nullslast(), Quote.date.desc())\
-        .limit(8).all()
+    try:
+        pending_quotes = Quote.query.filter(Quote.status.in_(['draft', 'sent']))\
+            .order_by(Quote.due_date.asc().nullslast(), Quote.date.desc())\
+            .limit(8).all()
+    except Exception:
+        db.session.rollback()
+        pending_quotes = []
 
     purchase_order_count = PurchaseOrder.query.count()
     draft_po_count = PurchaseOrder.query.filter_by(status='draft').count()
