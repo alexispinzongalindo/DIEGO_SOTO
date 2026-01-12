@@ -3,8 +3,12 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h3 class="mb-0">Instructions</h3>
-        <div class="text-muted">User manual (step-by-step)</div>
+        <h3 class="mb-0" id="instructionsTitle">Instructions</h3>
+        <div class="text-muted" id="instructionsSubtitle">User manual (step-by-step)</div>
+    </div>
+    <div class="btn-group" role="group" aria-label="Language">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-instructions-lang-btn="en">English</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-instructions-lang-btn="es">Español</button>
     </div>
 </div>
 
@@ -12,9 +16,9 @@
     <div class="col-lg-4">
         <div class="card shadow-sm">
             <div class="card-body">
-                <label class="form-label">Search instructions</label>
+                <label class="form-label" id="instructionsSearchLabel">Search instructions</label>
                 <input type="text" class="form-control" id="instructionsSearch" placeholder="Type to search...">
-                <div class="form-text">Search by keyword (invoice, quote, bill, purchase order, email, voice, tax, etc.).</div>
+                <div class="form-text" id="instructionsSearchHelp">Search by keyword (invoice, quote, bill, purchase order, email, voice, tax, etc.).</div>
                 <div class="alert alert-light border mt-3 mb-0" id="instructionsSearchMeta" role="status">Showing all sections.</div>
             </div>
         </div>
@@ -25,23 +29,40 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-1">
                     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-1" aria-expanded="true" aria-controls="ins-collapse-1">
-                        Getting started
+                        <span data-lang="en">Getting started</span>
+                        <span data-lang="es">Empezar</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-1" class="accordion-collapse collapse show" aria-labelledby="ins-heading-1" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol class="mb-0">
-                            <li>Log in.</li>
-                            <li>Go to <strong>Dashboard</strong> to see recent invoices/bills and alerts.</li>
-                            <li>Use the top menu to open:
-                                <ul class="mb-0">
-                                    <li>Accounts Receivable: Invoices, Quotes, Customers, Payments</li>
-                                    <li>Accounts Payable: Bills, Vendors, Payments</li>
-                                    <li>Operations: Purchase Orders</li>
-                                    <li>Office: Agenda, Notifications, Document Library</li>
-                                </ul>
-                            </li>
-                        </ol>
+                        <div data-lang="en">
+                            <ol class="mb-0">
+                                <li>Log in.</li>
+                                <li>Go to <strong>Dashboard</strong> to see recent invoices/bills and alerts.</li>
+                                <li>Use the top menu to open:
+                                    <ul class="mb-0">
+                                        <li>Accounts Receivable: Invoices, Quotes, Customers, Payments</li>
+                                        <li>Accounts Payable: Bills, Vendors, Payments</li>
+                                        <li>Operations: Purchase Orders</li>
+                                        <li>Office: Agenda, Notifications, Document Library</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                        </div>
+                        <div data-lang="es">
+                            <ol class="mb-0">
+                                <li>Inicia sesión.</li>
+                                <li>Ve a <strong>Dashboard</strong> para ver facturas/cuentas recientes y alertas.</li>
+                                <li>Usa el menú superior para abrir:
+                                    <ul class="mb-0">
+                                        <li>Cuentas por Cobrar: Facturas, Cotizaciones, Clientes, Pagos</li>
+                                        <li>Cuentas por Pagar: Cuentas, Proveedores, Pagos</li>
+                                        <li>Operaciones: Órdenes de Compra</li>
+                                        <li>Oficina: Agenda, Notificaciones, Biblioteca de Documentos</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -49,30 +70,54 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-2">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-2" aria-expanded="false" aria-controls="ins-collapse-2">
-                        Create an Invoice (manual)
+                        <span data-lang="en">Create an Invoice (manual)</span>
+                        <span data-lang="es">Crear una Factura (manual)</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-2" class="accordion-collapse collapse" aria-labelledby="ins-heading-2" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol>
-                            <li>Go to <strong>Accounts Receivable → Invoices</strong>.</li>
-                            <li>Click <strong>Create Invoice</strong>.</li>
-                            <li>Select the customer and fill invoice details (date, due date, terms, notes).</li>
-                            <li>Enter line items:
-                                <ul>
-                                    <li>Each line has <strong>#</strong>, <strong>Description</strong>, <strong>Qty</strong>, <strong>Price</strong>.</li>
-                                    <li>Use <strong>Add line</strong> to add more rows in order.</li>
-                                </ul>
-                            </li>
-                            <li>Tax:
-                                <ul>
-                                    <li>Enter <strong>Tax %</strong> to calculate tax automatically.</li>
-                                    <li>The <strong>Tax $</strong> field will be filled/updated.</li>
-                                </ul>
-                            </li>
-                            <li>Confirm <strong>Subtotal / Tax / Total</strong> and save.</li>
-                        </ol>
-                        <div class="text-muted small">Tip: On mobile, the table can scroll horizontally inside the page.</div>
+                        <div data-lang="en">
+                            <ol>
+                                <li>Go to <strong>Accounts Receivable → Invoices</strong>.</li>
+                                <li>Click <strong>Create Invoice</strong>.</li>
+                                <li>Select the customer and fill invoice details (date, due date, terms, notes).</li>
+                                <li>Enter line items:
+                                    <ul>
+                                        <li>Each line has <strong>#</strong>, <strong>Description</strong>, <strong>Qty</strong>, <strong>Price</strong>.</li>
+                                        <li>Use <strong>Add line</strong> to add more rows in order.</li>
+                                    </ul>
+                                </li>
+                                <li>Tax:
+                                    <ul>
+                                        <li>Enter <strong>Tax %</strong> to calculate tax automatically.</li>
+                                        <li>The <strong>Tax $</strong> field will be filled/updated.</li>
+                                    </ul>
+                                </li>
+                                <li>Confirm <strong>Subtotal / Tax / Total</strong> and save.</li>
+                            </ol>
+                            <div class="text-muted small">Tip: On mobile, the table can scroll horizontally inside the page.</div>
+                        </div>
+                        <div data-lang="es">
+                            <ol>
+                                <li>Ve a <strong>Cuentas por Cobrar → Invoices</strong>.</li>
+                                <li>Haz clic en <strong>Create Invoice</strong>.</li>
+                                <li>Selecciona el cliente y completa los detalles (fecha, vencimiento, términos, notas).</li>
+                                <li>Ingresa las líneas:
+                                    <ul>
+                                        <li>Cada línea tiene <strong>#</strong>, <strong>Description</strong>, <strong>Qty</strong>, <strong>Price</strong>.</li>
+                                        <li>Usa <strong>Add line</strong> para agregar más líneas en orden.</li>
+                                    </ul>
+                                </li>
+                                <li>Impuestos:
+                                    <ul>
+                                        <li>Ingresa <strong>Tax %</strong> para calcular automáticamente.</li>
+                                        <li>El campo <strong>Tax $</strong> se llenará/actualizará.</li>
+                                    </ul>
+                                </li>
+                                <li>Verifica <strong>Subtotal / Tax / Total</strong> y guarda.</li>
+                            </ol>
+                            <div class="text-muted small">Consejo: En móvil, la tabla puede desplazarse horizontalmente dentro de la página.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -80,18 +125,30 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-3">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-3" aria-expanded="false" aria-controls="ins-collapse-3">
-                        Create a Quote (manual)
+                        <span data-lang="en">Create a Quote (manual)</span>
+                        <span data-lang="es">Crear una Cotización (manual)</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-3" class="accordion-collapse collapse" aria-labelledby="ins-heading-3" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol class="mb-0">
-                            <li>Go to <strong>Accounts Receivable → Quotes</strong>.</li>
-                            <li>Click <strong>Create Quote</strong>.</li>
-                            <li>Fill customer, dates, and line items (Description, Qty, Price).</li>
-                            <li>Use <strong>Tax %</strong> if needed and verify totals.</li>
-                            <li>Save the quote.</li>
-                        </ol>
+                        <div data-lang="en">
+                            <ol class="mb-0">
+                                <li>Go to <strong>Accounts Receivable → Quotes</strong>.</li>
+                                <li>Click <strong>Create Quote</strong>.</li>
+                                <li>Fill customer, dates, and line items (Description, Qty, Price).</li>
+                                <li>Use <strong>Tax %</strong> if needed and verify totals.</li>
+                                <li>Save the quote.</li>
+                            </ol>
+                        </div>
+                        <div data-lang="es">
+                            <ol class="mb-0">
+                                <li>Ve a <strong>Cuentas por Cobrar → Quotes</strong>.</li>
+                                <li>Haz clic en <strong>Create Quote</strong>.</li>
+                                <li>Completa cliente, fechas y líneas (Description, Qty, Price).</li>
+                                <li>Usa <strong>Tax %</strong> si aplica y verifica totales.</li>
+                                <li>Guarda la cotización.</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -99,18 +156,30 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-4">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-4" aria-expanded="false" aria-controls="ins-collapse-4">
-                        Create a Bill (manual)
+                        <span data-lang="en">Create a Bill (manual)</span>
+                        <span data-lang="es">Crear una Cuenta (Bill) (manual)</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-4" class="accordion-collapse collapse" aria-labelledby="ins-heading-4" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol class="mb-0">
-                            <li>Go to <strong>Accounts Payable → Bills</strong>.</li>
-                            <li>Click <strong>Create Bill</strong>.</li>
-                            <li>Select vendor and enter bill details.</li>
-                            <li>Enter line items and optionally <strong>Tax %</strong>.</li>
-                            <li>Save the bill.</li>
-                        </ol>
+                        <div data-lang="en">
+                            <ol class="mb-0">
+                                <li>Go to <strong>Accounts Payable → Bills</strong>.</li>
+                                <li>Click <strong>Create Bill</strong>.</li>
+                                <li>Select vendor and enter bill details.</li>
+                                <li>Enter line items and optionally <strong>Tax %</strong>.</li>
+                                <li>Save the bill.</li>
+                            </ol>
+                        </div>
+                        <div data-lang="es">
+                            <ol class="mb-0">
+                                <li>Ve a <strong>Cuentas por Pagar → Bills</strong>.</li>
+                                <li>Haz clic en <strong>Create Bill</strong>.</li>
+                                <li>Selecciona el proveedor y completa los detalles.</li>
+                                <li>Ingresa las líneas y opcionalmente <strong>Tax %</strong>.</li>
+                                <li>Guarda la cuenta.</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -118,18 +187,30 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-5">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-5" aria-expanded="false" aria-controls="ins-collapse-5">
-                        Create a Purchase Order (manual)
+                        <span data-lang="en">Create a Purchase Order (manual)</span>
+                        <span data-lang="es">Crear una Orden de Compra (manual)</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-5" class="accordion-collapse collapse" aria-labelledby="ins-heading-5" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol class="mb-0">
-                            <li>Go to <strong>Operations → Purchase Orders</strong>.</li>
-                            <li>Click <strong>Create Purchase Order</strong>.</li>
-                            <li>Select PO type (vendor/customer) and select the contact.</li>
-                            <li>Enter line items and optionally <strong>Tax %</strong>.</li>
-                            <li>Save the purchase order.</li>
-                        </ol>
+                        <div data-lang="en">
+                            <ol class="mb-0">
+                                <li>Go to <strong>Operations → Purchase Orders</strong>.</li>
+                                <li>Click <strong>Create Purchase Order</strong>.</li>
+                                <li>Select PO type (vendor/customer) and select the contact.</li>
+                                <li>Enter line items and optionally <strong>Tax %</strong>.</li>
+                                <li>Save the purchase order.</li>
+                            </ol>
+                        </div>
+                        <div data-lang="es">
+                            <ol class="mb-0">
+                                <li>Ve a <strong>Operaciones → Purchase Orders</strong>.</li>
+                                <li>Haz clic en <strong>Create Purchase Order</strong>.</li>
+                                <li>Selecciona tipo (vendor/customer) y el contacto.</li>
+                                <li>Ingresa las líneas y opcionalmente <strong>Tax %</strong>.</li>
+                                <li>Guarda la orden de compra.</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -137,23 +218,40 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-6">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-6" aria-expanded="false" aria-controls="ins-collapse-6">
-                        Voice assistant (AI) basics
+                        <span data-lang="en">Voice assistant (AI) basics</span>
+                        <span data-lang="es">Asistente de voz (IA) básico</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-6" class="accordion-collapse collapse" aria-labelledby="ins-heading-6" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol>
-                            <li>Click the <strong>microphone</strong> icon in the top bar.</li>
-                            <li>Press <strong>Start</strong> and speak your command.</li>
-                            <li>If the AI needs information, it will ask <strong>one question at a time</strong> and wait for your answer.</li>
-                        </ol>
-                        <div class="fw-semibold">Examples</div>
-                        <ul class="mb-0">
-                            <li>Create invoice for Juan Perez for 250</li>
-                            <li>Create quote for Maria for 1200</li>
-                            <li>Create bill for vendor ACME for 180</li>
-                            <li>Create purchase order vendor for ACME for 500</li>
-                        </ul>
+                        <div data-lang="en">
+                            <ol>
+                                <li>Click the <strong>microphone</strong> icon in the top bar.</li>
+                                <li>Press <strong>Start</strong> and speak your command.</li>
+                                <li>If the AI needs information, it will ask <strong>one question at a time</strong> and wait for your answer.</li>
+                            </ol>
+                            <div class="fw-semibold">Examples</div>
+                            <ul class="mb-0">
+                                <li>Create invoice for Juan Perez for 250</li>
+                                <li>Create quote for Maria for 1200</li>
+                                <li>Create bill for vendor ACME for 180</li>
+                                <li>Create purchase order vendor for ACME for 500</li>
+                            </ul>
+                        </div>
+                        <div data-lang="es">
+                            <ol>
+                                <li>Haz clic en el icono de <strong>micrófono</strong> arriba.</li>
+                                <li>Presiona <strong>Start</strong> y di tu comando.</li>
+                                <li>Si falta información, la IA preguntará <strong>una pregunta a la vez</strong> y esperará tu respuesta.</li>
+                            </ol>
+                            <div class="fw-semibold">Ejemplos</div>
+                            <ul class="mb-0">
+                                <li>Create invoice for Juan Perez for 250</li>
+                                <li>Create quote for Maria for 1200</li>
+                                <li>Create bill for vendor ACME for 180</li>
+                                <li>Create purchase order vendor for ACME for 500</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -161,22 +259,38 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-7">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-7" aria-expanded="false" aria-controls="ins-collapse-7">
-                        Email documents (voice)
+                        <span data-lang="en">Email documents (voice)</span>
+                        <span data-lang="es">Enviar documentos por email (voz)</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-7" class="accordion-collapse collapse" aria-labelledby="ins-heading-7" data-bs-parent="#instructionsAccordion">
                     <div class="accordion-body">
-                        <ol>
-                            <li>Use a voice command like:
-                                <ul>
-                                    <li>Email invoice INV-000123 to Juan Perez</li>
-                                    <li>Email quote Q-000045 to Maria</li>
-                                    <li>Email purchase order PO-000010 to ACME</li>
-                                </ul>
-                            </li>
-                            <li>If the contact email is saved, the AI will use it.</li>
-                            <li>If it’s missing, the AI will ask for the email and can optionally save it.</li>
-                        </ol>
+                        <div data-lang="en">
+                            <ol>
+                                <li>Use a voice command like:
+                                    <ul>
+                                        <li>Email invoice INV-000123 to Juan Perez</li>
+                                        <li>Email quote Q-000045 to Maria</li>
+                                        <li>Email purchase order PO-000010 to ACME</li>
+                                    </ul>
+                                </li>
+                                <li>If the contact email is saved, the AI will use it.</li>
+                                <li>If it’s missing, the AI will ask for the email and can optionally save it.</li>
+                            </ol>
+                        </div>
+                        <div data-lang="es">
+                            <ol>
+                                <li>Usa un comando de voz como:
+                                    <ul>
+                                        <li>Email invoice INV-000123 to Juan Perez</li>
+                                        <li>Email quote Q-000045 to Maria</li>
+                                        <li>Email purchase order PO-000010 to ACME</li>
+                                    </ul>
+                                </li>
+                                <li>Si el correo está guardado, la IA lo usará.</li>
+                                <li>Si falta, la IA pedirá el correo y puede guardarlo si lo confirmas.</li>
+                            </ol>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -184,14 +298,18 @@
             <div class="accordion-item" data-instructions-item>
                 <h2 class="accordion-header" id="ins-heading-8">
                     <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-8" aria-expanded="false" aria-controls="ins-collapse-8">
-                        Troubleshooting
+                        <span data-lang="en">Troubleshooting</span>
+                        <span data-lang="es">Solución de problemas</span>
                     </button>
                 </h2>
                 <div id="ins-collapse-8" class="accordion-collapse collapse" aria-labelledby="ins-heading-8" data-bs-parent="#instructionsAccordion">
                     <ul class="mb-0">
-                        <li>If totals look wrong, check Qty/Price are numbers and Tax % is correct.</li>
-                        <li>If the AI doesn’t understand, try shorter commands and clear numbers (example: “for 250 dollars”).</li>
-                        <li>If a contact isn’t found by voice, confirm the exact customer/vendor name in the system.</li>
+                        <li data-lang="en">If totals look wrong, check Qty/Price are numbers and Tax % is correct.</li>
+                        <li data-lang="es">Si los totales están mal, verifica que Qty/Price sean números y que Tax % sea correcto.</li>
+                        <li data-lang="en">If the AI doesn’t understand, try shorter commands and clear numbers (example: “for 250 dollars”).</li>
+                        <li data-lang="es">Si la IA no entiende, usa comandos más cortos y números claros (ejemplo: “for 250 dollars”).</li>
+                        <li data-lang="en">If a contact isn’t found by voice, confirm the exact customer/vendor name in the system.</li>
+                        <li data-lang="es">Si no encuentra un contacto por voz, confirma el nombre exacto del cliente/proveedor en el sistema.</li>
                     </ul>
                 </div>
             </div>
@@ -205,34 +323,93 @@
 {% block extra_js %}
 <script>
 (function () {
+  const titleEl = document.getElementById('instructionsTitle');
+  const subtitleEl = document.getElementById('instructionsSubtitle');
+  const searchLabelEl = document.getElementById('instructionsSearchLabel');
+  const searchHelpEl = document.getElementById('instructionsSearchHelp');
   const input = document.getElementById('instructionsSearch');
   const meta = document.getElementById('instructionsSearchMeta');
   const noResults = document.getElementById('instructionsNoResults');
   const container = document.querySelector('[data-instructions-container]');
+  const langButtons = Array.prototype.slice.call(document.querySelectorAll('[data-instructions-lang-btn]'));
   if (!input || !container) return;
 
-  function applyFilter() {
+  function setLang(lang) {
+    const active = (lang === 'es') ? 'es' : 'en';
+    try {
+      window.localStorage.setItem('instructions_lang', active);
+    } catch (e) {
+      // ignore
+    }
+
+    const allLangEls = Array.prototype.slice.call(container.querySelectorAll('[data-lang]'));
+    allLangEls.forEach((el) => {
+      const elLang = (el.getAttribute('data-lang') || '').toLowerCase();
+      el.style.display = (elLang === active) ? '' : 'none';
+    });
+
+    langButtons.forEach((btn) => {
+      const btnLang = (btn.getAttribute('data-instructions-lang-btn') || '').toLowerCase();
+      const isActive = btnLang === active;
+      btn.classList.toggle('btn-primary', isActive);
+      btn.classList.toggle('btn-outline-primary', !isActive);
+    });
+
+    if (titleEl) titleEl.textContent = active === 'es' ? 'Instrucciones' : 'Instructions';
+    if (subtitleEl) subtitleEl.textContent = active === 'es' ? 'Manual de usuario (paso a paso)' : 'User manual (step-by-step)';
+    if (searchLabelEl) searchLabelEl.textContent = active === 'es' ? 'Buscar instrucciones' : 'Search instructions';
+    if (searchHelpEl) searchHelpEl.textContent = active === 'es' ? 'Busca por palabra clave (invoice, quote, bill, purchase order, email, voice, tax, etc.).' : 'Search by keyword (invoice, quote, bill, purchase order, email, voice, tax, etc.).';
+    if (noResults) noResults.textContent = active === 'es' ? 'No se encontraron resultados.' : 'No results found.';
+    input.placeholder = active === 'es' ? 'Escribe para buscar...' : 'Type to search...';
+
+    applyFilter(active);
+  }
+
+  function applyFilter(activeLangOverride) {
     const q = (input.value || '').trim().toLowerCase();
+    const activeLang = activeLangOverride || (function () {
+      try {
+        return (window.localStorage.getItem('instructions_lang') || 'en').toLowerCase();
+      } catch (e) {
+        return 'en';
+      }
+    })();
     const items = Array.prototype.slice.call(container.querySelectorAll('[data-instructions-item]'));
     let shown = 0;
 
     items.forEach((item) => {
-      const text = (item.textContent || '').toLowerCase();
+      const langBlock = item.querySelector(`[data-lang="${activeLang}"]`);
+      const text = ((langBlock ? langBlock.textContent : item.textContent) || '').toLowerCase();
       const match = !q || text.indexOf(q) !== -1;
       item.style.display = match ? '' : 'none';
       if (match) shown += 1;
     });
 
     if (!q) {
-      meta.textContent = 'Showing all sections.';
+      meta.textContent = (activeLang === 'es') ? 'Mostrando todas las secciones.' : 'Showing all sections.';
     } else {
-      meta.textContent = `Showing ${shown} section(s) for: "${q}"`;
+      meta.textContent = (activeLang === 'es') ? `Mostrando ${shown} sección(es) para: "${q}"` : `Showing ${shown} section(s) for: "${q}"`;
     }
 
     noResults.style.display = (q && shown === 0) ? '' : 'none';
   }
 
-  input.addEventListener('input', applyFilter);
+  input.addEventListener('input', () => applyFilter());
+
+  langButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const lang = (btn.getAttribute('data-instructions-lang-btn') || 'en').toLowerCase();
+      setLang(lang);
+    });
+  });
+
+  let initial = 'en';
+  try {
+    initial = (window.localStorage.getItem('instructions_lang') || 'en').toLowerCase();
+  } catch (e) {
+    initial = 'en';
+  }
+  setLang(initial);
 })();
 </script>
 {% endblock %}
