@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}Voice Commands{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h3 class="mb-0">Voice Commands</h3>
+    <div class="text-muted">Instructions (separate from User Manual)</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('office.settings') }}">Back to Settings</a>
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('office.instructions') }}">Open User Manual</a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <div class="fw-semibold mb-2">Quick start</div>
+        <ol class="mb-0">
+          <li>Click the <strong>mic</strong> icon in the top bar.</li>
+          <li>Choose <strong>English</strong> or <strong>Español</strong> (or Auto).</li>
+          <li>Press <strong>Start</strong> and speak clearly.</li>
+          <li>Watch the transcript and the assistant response.</li>
+        </ol>
+        <div class="alert alert-light border mt-3 mb-0" role="status">
+          If the assistant asks <strong>“Do you confirm?”</strong>, answer <strong>yes/no</strong> (or <strong>sí/no</strong>).
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-body">
+        <div class="fw-semibold mb-2">Tips</div>
+        <ul class="mb-0">
+          <li>Use short sentences (one request at a time).</li>
+          <li>Say the customer name exactly as it appears in the system.</li>
+          <li>For document emails, specify who to send it to (email address).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="accordion" id="voiceCommandsAccordion">
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="vc-heading-1">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-1" aria-expanded="true" aria-controls="vc-collapse-1">
+            Navigation & Search (voice)
+          </button>
+        </h2>
+        <div id="vc-collapse-1" class="accordion-collapse collapse show" aria-labelledby="vc-heading-1" data-bs-parent="#voiceCommandsAccordion">
+          <div class="accordion-body">
+            <div class="text-muted small mb-2">Use these commands to open pages quickly.</div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 35%">Example command</th>
+                    <th>What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>dashboard</code></td><td>Open Dashboard</td></tr>
+                  <tr><td><code>open invoices</code></td><td>Open Invoices</td></tr>
+                  <tr><td><code>open agenda</code></td><td>Open Agenda</td></tr>
+                  <tr><td><code>notifications</code></td><td>Open Notifications</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="vc-heading-2">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-2" aria-expanded="false" aria-controls="vc-collapse-2">
+            Invoices, customers, payments
+          </button>
+        </h2>
+        <div id="vc-collapse-2" class="accordion-collapse collapse" aria-labelledby="vc-heading-2" data-bs-parent="#voiceCommandsAccordion">
+          <div class="accordion-body">
+            <div class="text-muted small mb-2">Some actions may require confirmation.</div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 35%">Example command</th>
+                    <th>What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>overdue invoices</code></td><td>List overdue invoices and open Invoices</td></tr>
+                  <tr><td><code>create customer John Smith, email john@acme.com</code></td><td>Create a new customer</td></tr>
+                  <tr><td><code>create invoice for Acme for 1200</code></td><td>Create an invoice</td></tr>
+                  <tr><td><code>email invoice 1021 to billing@acme.com</code></td><td>Email an invoice</td></tr>
+                  <tr><td><code>record payment of 200 from Acme</code></td><td>Record a payment</td></tr>
+                  <tr><td><code>what is Acme balance?</code></td><td>Get customer balance</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="vc-heading-3">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-3" aria-expanded="false" aria-controls="vc-collapse-3">
+            Quotes, bills, purchase orders
+          </button>
+        </h2>
+        <div id="vc-collapse-3" class="accordion-collapse collapse" aria-labelledby="vc-heading-3" data-bs-parent="#voiceCommandsAccordion">
+          <div class="accordion-body">
+            <div class="alert alert-warning" role="alert">
+              For <strong>delete</strong>, <strong>convert</strong>, and <strong>email</strong>, the assistant may ask for confirmation.
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 35%">Example command</th>
+                    <th>What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>create quote for Acme for 500</code></td><td>Create a quote</td></tr>
+                  <tr><td><code>email quote 55 to sales@acme.com</code></td><td>Email a quote</td></tr>
+                  <tr><td><code>convert quote 55 to invoice</code></td><td>Convert quote to invoice</td></tr>
+                  <tr><td><code>delete quote 55</code></td><td>Delete a quote</td></tr>
+                  <tr><td><code>create bill for vendor ACME for 180</code></td><td>Create a bill</td></tr>
+                  <tr><td><code>create purchase order vendor for ACME for 500</code></td><td>Create a purchase order</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="vc-heading-4">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-4" aria-expanded="false" aria-controls="vc-collapse-4">
+            Document Library: ask for documents, email documents, create projects
+          </button>
+        </h2>
+        <div id="vc-collapse-4" class="accordion-collapse collapse" aria-labelledby="vc-heading-4" data-bs-parent="#voiceCommandsAccordion">
+          <div class="accordion-body">
+            <div class="text-muted small mb-2">“Create documents” currently means uploading/adding documents in the Document Library (not generating a new PDF from scratch).</div>
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th style="width: 35%">Example command</th>
+                    <th>What it does</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td><code>search documents contract</code></td><td>Search the Document Library by title/description/filename</td></tr>
+                  <tr><td><code>create library project Renovation 2026</code></td><td>Create a Document Library project</td></tr>
+                  <tr><td><code>email document 12 to alex@company.com</code></td><td>Email a library document as an attachment</td></tr>
+                  <tr><td><code>email document 12 to alex@company.com with message please review</code></td><td>Email document with a message</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="vc-heading-5">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-5" aria-expanded="false" aria-controls="vc-collapse-5">
+            Troubleshooting
+          </button>
+        </h2>
+        <div id="vc-collapse-5" class="accordion-collapse collapse" aria-labelledby="vc-heading-5" data-bs-parent="#voiceCommandsAccordion">
+          <div class="accordion-body">
+            <ul class="mb-0">
+              <li>If voice is not supported, try Chrome.</li>
+              <li>If actions fail, verify you are logged in and have permissions.</li>
+              <li>If OpenAI is not enabled on the server, some assistant actions will be limited.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

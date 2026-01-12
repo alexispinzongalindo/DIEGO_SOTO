@@ -437,6 +437,12 @@ def instructions():
     return render_template('office/instructions.html', title='Instructions')
 
 
+@bp.route('/voice-commands')
+@login_required
+def voice_commands():
+    return render_template('office/voice_commands.html', title='Voice Commands')
+
+
 def _get_app_setting(key: str) -> str:
     try:
         if not inspect(db.engine).has_table('app_setting'):
