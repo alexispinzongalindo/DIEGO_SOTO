@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import date, timedelta
 from io import BytesIO
+import re
 
 from flask import render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required
@@ -16,6 +17,24 @@ def _digits_only(value: str) -> str:
     raw = (value or '').strip()
     digits = ''.join([c for c in raw if c.isdigit()])
     return digits
+
+
+def _compute_due_date(invoice_date, terms: str):
+    if not invoice_date:
+        return None
+    t = (terms or '').strip().lower()
+    if not t:
+        return None
+    m = re.search(r'(\d{1,3})', t)
+    if not m:
+        return None
+    try:
+        days = int(m.group(1))
+    except Exception:
+        return None
+    if days < 0 or days > 3650:
+        return None
+    return invoice_date + timedelta(days=days)
 
 
 def _build_invoice_pdf(invoice, items):
@@ -258,6 +277,12 @@ def create_invoice():
             form.customer_id.data = customers[0].id
         if not (form.number.data or '').strip():
             form.number.data = _next_invoice_number()
+        if not (form.terms.data or '').strip():
+            form.terms.data = 'Net 30'
+        if not form.due_date.data:
+            computed = _compute_due_date(form.date.data, form.terms.data)
+            if computed:
+                form.due_date.data = computed
 
     if form.validate_on_submit():
         invoice_number = _digits_only(form.number.data)
@@ -311,7 +336,7 @@ def create_invoice():
         invoice = Invoice(
             number=invoice_number,
             date=form.date.data,
-            due_date=form.due_date.data,
+            due_date=(form.due_date.data or _compute_due_date(form.date.data, form.terms.data)),
             customer_id=form.customer_id.data,
             subtotal=subtotal,
             tax=tax,
@@ -363,6 +388,10 @@ def create_quote():
             form.customer_id.data = customers[0].id
 
     if form.validate_on_submit():
+        if not form.due_date.data:
+            computed = _compute_due_date(form.date.data, form.terms.data)
+            if computed:
+                form.due_date.data = computed
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:

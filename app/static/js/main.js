@@ -198,6 +198,87 @@
     tables.forEach(wireTable);
   }
 
+  function initDueDateAuto() {
+    function findInvoiceFields() {
+      const dateEl = document.querySelector('input[name="date"], input[name$=".date"], input[id$="-date"]');
+      const dueEl = document.querySelector('input[name="due_date"], input[name$=".due_date"], input[id$="-due_date"]');
+      const termsEl = document.querySelector('input[name="terms"], input[name$=".terms"], input[id$="-terms"]');
+      if (!dateEl || !dueEl || !termsEl) return null;
+      return { dateEl, dueEl, termsEl };
+    }
+
+    function parseDate(value) {
+      const raw = (value || '').trim();
+      if (!raw) return null;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const [y, m, d] = raw.split('-').map(v => parseInt(v, 10));
+        return new Date(y, (m || 1) - 1, d || 1);
+      }
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(raw)) {
+        const [mm, dd, yyyy] = raw.split('/').map(v => parseInt(v, 10));
+        return new Date(yyyy, (mm || 1) - 1, dd || 1);
+      }
+      const dt = new Date(raw);
+      return Number.isFinite(dt.getTime()) ? dt : null;
+    }
+
+    function formatDate(dateObj, likeEl) {
+      if (!dateObj) return '';
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      if (likeEl && (likeEl.type || '').toLowerCase() === 'date') {
+        return `${y}-${m}-${d}`;
+      }
+      return `${m}/${d}/${y}`;
+    }
+
+    function parseNetDays(terms) {
+      const t = (terms || '').toString().trim().toLowerCase();
+      if (!t) return null;
+      const m = t.match(/(\d{1,3})/);
+      if (!m) return null;
+      const n = parseInt(m[1], 10);
+      if (!Number.isFinite(n) || n < 0 || n > 3650) return null;
+      return n;
+    }
+
+    function computeAndSet() {
+      const fields = findInvoiceFields();
+      if (!fields) return;
+      const { dateEl, dueEl, termsEl } = fields;
+
+      if (dueEl.dataset && dueEl.dataset.manual === '1') return;
+
+      const base = parseDate(dateEl.value);
+      const days = parseNetDays(termsEl.value);
+      if (!base || days === null) return;
+
+      const out = new Date(base.getTime());
+      out.setDate(out.getDate() + days);
+      dueEl.value = formatDate(out, dueEl);
+    }
+
+    const fields = findInvoiceFields();
+    if (!fields) return;
+    const { dateEl, dueEl, termsEl } = fields;
+
+    dueEl.addEventListener('input', () => {
+      if (dueEl.dataset) dueEl.dataset.manual = '1';
+    });
+    dueEl.addEventListener('change', () => {
+      if (dueEl.dataset) dueEl.dataset.manual = '1';
+    });
+
+    dateEl.addEventListener('change', computeAndSet);
+    termsEl.addEventListener('input', computeAndSet);
+    termsEl.addEventListener('change', computeAndSet);
+
+    if (!(dueEl.value || '').trim()) {
+      computeAndSet();
+    }
+  }
+
   async function sendCommand(text, lang) {
     const res = await fetch('/office/assistant/command', {
       method: 'POST',
@@ -512,11 +593,13 @@
     document.addEventListener('DOMContentLoaded', () => {
       initTooltips();
       initLineItems();
+      initDueDateAuto();
       initVoice();
     });
   } else {
     initTooltips();
     initLineItems();
+    initDueDateAuto();
     initVoice();
   }
 })();
