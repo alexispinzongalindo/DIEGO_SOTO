@@ -353,6 +353,28 @@
       }
     }
 
+    async function greetThenListen() {
+      if (busy) return;
+      const activeLang = resolveLang();
+      statusEl.textContent = 'Thinking...';
+      busy = true;
+      try {
+        const data = await sendCommand('', activeLang);
+        const speakText = data.speak || '';
+        responseEl.value = speakText;
+        statusEl.textContent = 'Listening...';
+        speak(speakText, activeLang, () => {
+          setTimeout(() => {
+            busy = false;
+            startListening(true);
+          }, 400);
+        });
+      } catch (e) {
+        busy = false;
+        startListening();
+      }
+    }
+
     startBtn.addEventListener('click', () => {
       startListening();
     });
@@ -373,7 +395,7 @@
           }
         }
 
-        startListening();
+        greetThenListen();
       });
     }
 
