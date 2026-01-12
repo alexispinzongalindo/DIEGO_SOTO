@@ -18,13 +18,13 @@ def _digits_only(value: str) -> str:
 def _next_po_number() -> str:
     last = PurchaseOrder.query.order_by(PurchaseOrder.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 @bp.route('/purchase-orders')

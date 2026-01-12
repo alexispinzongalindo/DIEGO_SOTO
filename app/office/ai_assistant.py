@@ -292,49 +292,49 @@ def _digits_only(value: str) -> str:
 def _next_invoice_number() -> str:
     last = Invoice.query.order_by(Invoice.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 def _next_quote_number() -> str:
     last = Quote.query.order_by(Quote.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 def _next_bill_number() -> str:
     last = Bill.query.order_by(Bill.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 def _next_po_number() -> str:
     last = PurchaseOrder.query.order_by(PurchaseOrder.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 def _find_purchase_order_by_number_or_id(number_or_id: str) -> Optional[PurchaseOrder]:

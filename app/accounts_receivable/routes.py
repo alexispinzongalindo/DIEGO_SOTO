@@ -93,25 +93,25 @@ def _build_invoice_pdf(invoice, items):
 def _next_quote_number():
     last = Quote.query.order_by(Quote.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 def _next_invoice_number():
     last = Invoice.query.order_by(Invoice.id.desc()).first()
     if not last or not last.number:
-        return '000001'
+        return '0001'
     try:
         digits = _digits_only(last.number)
         n = int(digits)
-        return f"{n + 1:06d}"
+        return f"{n + 1:04d}"
     except Exception:
-        return f"{(last.id + 1):06d}"
+        return f"{(last.id + 1):04d}"
 
 
 @bp.route('/invoices')
