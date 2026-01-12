@@ -25,6 +25,16 @@
                             {% endfor %}
                         </div>
                         <div class="col-md-4 mb-3">
+                            {{ form.due_date.label(class="form-label") }}
+                            {{ form.due_date(class="form-control" + (' is-invalid' if form.due_date.errors else '')) }}
+                            {% for error in form.due_date.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
                             {{ form.valid_until.label(class="form-label") }}
                             {{ form.valid_until(class="form-control" + (' is-invalid' if form.valid_until.errors else '')) }}
                             {% for error in form.valid_until.errors %}

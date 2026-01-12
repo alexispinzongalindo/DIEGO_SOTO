@@ -36,6 +36,14 @@
     <div class="col-md-3">
         <div class="card shadow-sm">
             <div class="card-body">
+                <div class="text-muted small">Due Date</div>
+                <div class="fw-semibold">{{ quote.due_date.strftime('%Y-%m-%d') if quote.due_date else '' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm">
+            <div class="card-body">
                 <div class="text-muted small">Valid Until</div>
                 <div class="fw-semibold">{{ quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else '' }}</div>
             </div>

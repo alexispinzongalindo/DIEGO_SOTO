@@ -123,6 +123,7 @@ class Quote(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     number = db.Column(db.String(20), unique=True, index=True)
     date = db.Column(db.Date, index=True, default=datetime.utcnow)
+    due_date = db.Column(db.Date)
     valid_until = db.Column(db.Date)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
     subtotal = db.Column(db.Numeric(10, 2))

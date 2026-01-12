@@ -43,6 +43,7 @@ class QuoteItemForm(Form):
 
 class QuoteForm(FlaskForm):
     date = DateField('Quote Date', validators=[DataRequired()])
+    due_date = DateField('Due Date', validators=[Optional()])
     valid_until = DateField('Valid Until', validators=[Optional()])
     customer_id = SelectField('Customer', coerce=int, validators=[DataRequired()])
     status = SelectField(

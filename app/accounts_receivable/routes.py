@@ -393,6 +393,7 @@ def create_quote():
         quote = Quote(
             number=_next_quote_number(),
             date=form.date.data,
+            due_date=form.due_date.data,
             valid_until=form.valid_until.data,
             customer_id=form.customer_id.data,
             subtotal=subtotal,
@@ -505,6 +506,7 @@ def edit_quote(id):
         total = subtotal + tax
 
         quote.date = form.date.data
+        quote.due_date = form.due_date.data
         quote.valid_until = form.valid_until.data
         quote.customer_id = form.customer_id.data
         quote.subtotal = subtotal

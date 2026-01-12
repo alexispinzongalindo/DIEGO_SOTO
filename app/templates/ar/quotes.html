@@ -20,6 +20,7 @@
                         <th>#</th>
                         <th>Customer</th>
                         <th>Date</th>
+                        <th>Due Date</th>
                         <th>Valid Until</th>
                         <th class="text-end">Total</th>
                         <th>Status</th>
@@ -34,6 +35,7 @@
                         </td>
                         <td>{{ quote.customer.name if quote.customer else '' }}</td>
                         <td>{{ quote.date.strftime('%Y-%m-%d') if quote.date else '' }}</td>
+                        <td>{{ quote.due_date.strftime('%Y-%m-%d') if quote.due_date else '' }}</td>
                         <td>{{ quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else '' }}</td>
                         <td class="text-end">${{ "%0.2f"|format(quote.total or 0) }}</td>
                         <td>
@@ -62,7 +64,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="text-center py-4">
+                        <td colspan="8" class="text-center py-4">
                             <div class="text-muted">No quotes found</div>
                             <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ar.create_quote') }}">Create your first quote</a>
                         </td>

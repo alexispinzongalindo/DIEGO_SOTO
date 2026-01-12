@@ -57,6 +57,10 @@ def dashboard():
     recent_bills = Bill.query.order_by(Bill.date.desc()).limit(5).all()
     recent_purchase_orders = PurchaseOrder.query.order_by(PurchaseOrder.date.desc()).limit(5).all()
 
+    pending_quotes = Quote.query.filter(Quote.status.in_(['draft', 'sent']))\
+        .order_by(Quote.due_date.asc().nullslast(), Quote.date.desc())\
+        .limit(8).all()
+
     purchase_order_count = PurchaseOrder.query.count()
     draft_po_count = PurchaseOrder.query.filter_by(status='draft').count()
     
@@ -99,6 +103,7 @@ def dashboard():
                          thirty_day_expenses=thirty_day_expenses,
                          thirty_day_profit=thirty_day_profit,
                          recent_quotes=recent_quotes,
+                         pending_quotes=pending_quotes,
                          recent_invoices=recent_invoices,
                          recent_bills=recent_bills,
                          recent_purchase_orders=recent_purchase_orders,
