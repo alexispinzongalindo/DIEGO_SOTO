@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">{{ title }}</h3>
+    <a class="btn btn-outline-secondary" href="{{ url_for('ar.customers') }}">Back</a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post" action="">
+            {{ form.hidden_tag() }}
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Customer Name</label>
+                    {{ form.name(class="form-control" + (' is-invalid' if form.name.errors else '')) }}
+                    {% for e in form.name.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Email</label>
+                    {{ form.email(class="form-control" + (' is-invalid' if form.email.errors else '')) }}
+                    {% for e in form.email.errors %}<div class="invalid-feedback">{{ e }}</div>{% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Phone</label>
+                    {{ form.phone(class="form-control") }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Tax ID</label>
+                    {{ form.tax_id(class="form-control") }}
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Credit Limit</label>
+                    {{ form.credit_limit(class="form-control") }}
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Address</label>
+                    {{ form.address(class="form-control", rows=3) }}
+                </div>
+            </div>
+
+            <div class="mt-3 d-flex gap-2">
+                {{ form.submit(class="btn btn-primary") }}
+                {% if customer %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('ar.customer_view', customer_id=customer.id) }}">Cancel</a>
+                {% else %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('ar.customers') }}">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

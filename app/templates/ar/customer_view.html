@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ customer.name }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">{{ customer.name }}</h3>
+        <div class="text-muted">Balance: ${{ "%0.2f"|format(customer.balance or 0) }}</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="{{ url_for('ar.customers') }}">Back</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('ar.customer_edit', customer_id=customer.id) }}">Edit</a>
+        <a class="btn btn-outline-secondary" target="_blank" href="{{ url_for('ar.customer_statement_pdf', customer_id=customer.id) }}">Statement PDF</a>
+        <a class="btn btn-primary" href="{{ url_for('ar.invoice_new') }}">New Invoice</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">Contact</div>
+            <div class="card-body">
+                <div><strong>Email:</strong> {{ customer.email or '' }}</div>
+                <div><strong>Phone:</strong> {{ customer.phone or '' }}</div>
+                <div><strong>Tax ID:</strong> {{ customer.tax_id or '' }}</div>
+                <div class="mt-2"><strong>Address:</strong><br>{{ customer.address or '' }}</div>
+                <div class="mt-2"><strong>Credit Limit:</strong> ${{ "%0.2f"|format(customer.credit_limit or 0) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">Invoices</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Invoice</th>
+                            <th>Date</th>
+                            <th>Due</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Balance</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in invoices %}
+                        <tr>
+                            <td><a href="{{ url_for('ar.invoice_view', invoice_id=inv.id) }}">{{ inv.number }}</a></td>
+                            <td>{{ inv.date.isoformat() if inv.date else '' }}</td>
+                            <td class="{% if inv.is_overdue %}text-danger fw-bold{% endif %}">{{ inv.due_date.isoformat() if inv.due_date else '' }}</td>
+                            <td class="text-end">${{ "%0.2f"|format(inv.total or 0) }}</td>
+                            <td class="text-end">${{ "%0.2f"|format(inv.paid_amount or 0) }}</td>
+                            <td class="text-end">${{ "%0.2f"|format(inv.balance or 0) }}</td>
+                            <td><span class="badge bg-secondary">{{ inv.status }}</span></td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-secondary" target="_blank" href="{{ url_for('ar.invoice_pdf', invoice_id=inv.id) }}">PDF</a></td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted">No invoices.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
