@@ -16,7 +16,6 @@ class VendorForm(FlaskForm):
 
 
 class BillItemForm(Form):
-    product_id = SelectField('Item', coerce=int, validators=[Optional()])
     description = StringField('Description', validators=[Optional(), Length(max=200)])
     quantity = DecimalField('Qty', validators=[Optional(), NumberRange(min=0.01)], places=2)
     unit_price = DecimalField('Unit Price', validators=[Optional(), NumberRange(min=0)], places=2)

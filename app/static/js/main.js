@@ -39,6 +39,165 @@
     });
   }
 
+  function parseNumber(val) {
+    const n = parseFloat((val || '').toString().replace(/[^0-9.-]/g, ''));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatMoney(amount) {
+    const n = Number.isFinite(amount) ? amount : 0;
+    return `$${n.toFixed(2)}`;
+  }
+
+  function initLineItems() {
+    const tables = Array.prototype.slice.call(document.querySelectorAll('[data-line-items-table]'));
+    if (!tables.length) return;
+
+    function getRowInputs(row) {
+      const inputs = row.querySelectorAll('input, select, textarea');
+      const out = {};
+      inputs.forEach((el) => {
+        const name = (el.getAttribute('name') || '').toLowerCase();
+        if (name.endsWith('quantity')) out.qty = el;
+        if (name.endsWith('unit_price')) out.price = el;
+        if (name.endsWith('description')) out.desc = el;
+      });
+      return out;
+    }
+
+    function isRowBlank(row) {
+      const { qty, price, desc } = getRowInputs(row);
+      const d = (desc && desc.value ? desc.value : '').trim();
+      const q = qty ? qty.value : '';
+      const p = price ? price.value : '';
+      return !d && !q && !p;
+    }
+
+    function renumberAndToggleRows(table) {
+      const tbody = table.tBodies && table.tBodies[0];
+      if (!tbody) return;
+      const rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+
+      let lastNonBlankIndex = -1;
+      rows.forEach((row, idx) => {
+        const numCell = row.querySelector('[data-line-number]');
+        if (numCell) numCell.textContent = String(idx + 1);
+        if (!isRowBlank(row)) lastNonBlankIndex = idx;
+      });
+
+      rows.forEach((row, idx) => {
+        const show = idx <= lastNonBlankIndex + 1;
+        row.classList.toggle('d-none', !show);
+      });
+    }
+
+    function findTaxAmountInput(root) {
+      // Works for invoice/quote/bill/po pages where `tax` is a single input in the form
+      const scope = root || document;
+      return scope.querySelector('input[name$="tax"]');
+    }
+
+    function findTotalsContainer(table) {
+      // Prefer the nearest card (invoice/quote/bill), but support PO where totals live outside a card
+      let el = table.closest('.card');
+      if (el && el.querySelector('[data-subtotal], [data-tax], [data-total]')) return el;
+
+      // Walk up the DOM until we find a container that has the totals spans
+      let cur = table.parentElement;
+      while (cur) {
+        if (cur.querySelector && cur.querySelector('[data-subtotal], [data-tax], [data-total]')) {
+          return cur;
+        }
+        cur = cur.parentElement;
+      }
+      return null;
+    }
+
+    function calculateTotals(table) {
+      const tbody = table.tBodies && table.tBodies[0];
+      if (!tbody) return;
+      const rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+
+      let subtotal = 0;
+      rows.forEach((row) => {
+        const { qty, price } = getRowInputs(row);
+        const q = parseNumber(qty ? qty.value : 0);
+        const p = parseNumber(price ? price.value : 0);
+        if (q > 0 && p >= 0) subtotal += q * p;
+      });
+
+      const root = table.closest('form') || document;
+      const taxRateEl = root.querySelector('[data-tax-rate]');
+      const taxAmountEl = findTaxAmountInput(root);
+      let taxAmount = parseNumber(taxAmountEl ? taxAmountEl.value : 0);
+
+      if (taxRateEl && taxRateEl === document.activeElement) {
+        // user is editing %, keep amount in sync
+        const rate = parseNumber(taxRateEl.value);
+        taxAmount = subtotal * (rate / 100);
+        if (taxAmountEl) taxAmountEl.value = taxAmount ? taxAmount.toFixed(2) : '';
+      } else if (taxRateEl && taxAmountEl && taxAmountEl === document.activeElement) {
+        // user is editing amount, leave it
+      } else if (taxRateEl && taxRateEl.value) {
+        // if % is set, recompute amount to stay consistent
+        const rate = parseNumber(taxRateEl.value);
+        taxAmount = subtotal * (rate / 100);
+        if (taxAmountEl) taxAmountEl.value = taxAmount ? taxAmount.toFixed(2) : '';
+      } else {
+        // no % set, use typed amount
+        taxAmount = parseNumber(taxAmountEl ? taxAmountEl.value : 0);
+      }
+
+      const total = subtotal + taxAmount;
+      const totalsContainer = findTotalsContainer(table);
+      const subtotalEl = totalsContainer ? totalsContainer.querySelector('[data-subtotal]') : null;
+      const taxEl = totalsContainer ? totalsContainer.querySelector('[data-tax]') : null;
+      const totalEl = totalsContainer ? totalsContainer.querySelector('[data-total]') : null;
+      if (subtotalEl) subtotalEl.textContent = formatMoney(subtotal);
+      if (taxEl) taxEl.textContent = formatMoney(taxAmount);
+      if (totalEl) totalEl.textContent = formatMoney(total);
+    }
+
+    function wireTable(table) {
+      renumberAndToggleRows(table);
+      calculateTotals(table);
+
+      table.addEventListener('input', () => {
+        renumberAndToggleRows(table);
+        calculateTotals(table);
+      });
+
+      const addBtn = document.querySelector(`[data-add-line-for="${table.id}"]`);
+      if (addBtn) {
+        addBtn.addEventListener('click', () => {
+          const tbody = table.tBodies && table.tBodies[0];
+          if (!tbody) return;
+          const rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+          const hidden = rows.find(r => r.classList.contains('d-none'));
+          if (hidden) {
+            hidden.classList.remove('d-none');
+            const { desc } = getRowInputs(hidden);
+            if (desc) desc.focus();
+          }
+          renumberAndToggleRows(table);
+          calculateTotals(table);
+        });
+      }
+
+      const root = table.closest('form') || document;
+      const taxRateEl = root.querySelector('[data-tax-rate]');
+      const taxAmountEl = findTaxAmountInput(root);
+      if (taxRateEl) {
+        taxRateEl.addEventListener('input', () => calculateTotals(table));
+      }
+      if (taxAmountEl) {
+        taxAmountEl.addEventListener('input', () => calculateTotals(table));
+      }
+    }
+
+    tables.forEach(wireTable);
+  }
+
   async function sendCommand(text, lang) {
     const res = await fetch('/office/assistant/command', {
       method: 'POST',
@@ -330,10 +489,12 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       initTooltips();
+      initLineItems();
       initVoice();
     });
   } else {
     initTooltips();
+    initLineItems();
     initVoice();
   }
 })();

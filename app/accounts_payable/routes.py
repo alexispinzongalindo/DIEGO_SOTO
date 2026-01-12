@@ -6,7 +6,7 @@ from flask_login import login_required
 from app import db
 from app.accounts_payable import bp
 from app.accounts_payable.forms import VendorForm, BillForm, VendorPaymentForm, DeleteForm
-from app.models import Vendor, Bill, VendorPayment, BillItem, Product
+from app.models import Vendor, Bill, VendorPayment, BillItem
 
 
 @bp.route('/bills')
@@ -92,13 +92,8 @@ def create_bill():
         flash('Create a vendor before creating a bill.', 'warning')
         return redirect(url_for('ap.create_vendor'))
 
-    products = Product.query.order_by(Product.code.asc()).all()
-    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
-
     form = BillForm()
     form.vendor_id.choices = [(v.id, v.name) for v in vendors]
-    for item_form in form.items:
-        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.date.data = date.today()
@@ -109,36 +104,29 @@ def create_bill():
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.form.product_id.data or 0
-            if product_id == 0:
-                product_id = None
-
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
             unit_price = item_form.form.unit_price.data
 
-            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            is_blank = (not description) and (qty is None) and (unit_price is None)
             if is_blank:
                 continue
 
-            product = Product.query.get(product_id) if product_id else None
-            if not description and product:
-                description = product.description or ''
+            if not description:
+                flash('Each bill item must include a description.', 'danger')
+                return render_template('ap/create_bill.html', title='Create Bill', form=form)
 
             if qty is None:
                 flash('Each bill item must include a quantity.', 'danger')
                 return render_template('ap/create_bill.html', title='Create Bill', form=form)
 
-            if unit_price is None and product:
-                unit_price = product.cost if product.cost is not None else product.price
             if unit_price is None:
-                flash('Each bill item must include a unit price (or select an item with a default price).', 'danger')
+                flash('Each bill item must include a unit price.', 'danger')
                 return render_template('ap/create_bill.html', title='Create Bill', form=form)
 
             amount = float(qty) * float(unit_price)
             subtotal += amount
             item_rows.append({
-                'product_id': product_id,
                 'description': description,
                 'quantity': qty,
                 'unit_price': unit_price,
@@ -169,7 +157,6 @@ def create_bill():
         for row in item_rows:
             bill_item = BillItem(
                 bill=bill,
-                product_id=row['product_id'],
                 description=row['description'],
                 quantity=row['quantity'],
                 unit_price=row['unit_price'],
@@ -297,20 +284,14 @@ def edit_bill(id):
         flash('Create a vendor before editing a bill.', 'warning')
         return redirect(url_for('ap.create_vendor'))
 
-    products = Product.query.order_by(Product.code.asc()).all()
-    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
-
     form = BillForm(obj=bill)
     form.submit.label.text = 'Save Bill'
     form.vendor_id.choices = [(v.id, v.name) for v in vendors]
-    for item_form in form.items:
-        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.vendor_id.data = bill.vendor_id
         existing_items = bill.items.order_by(BillItem.id.asc()).all()
         for idx, bill_item in enumerate(existing_items[: len(form.items)]):
-            form.items[idx].form.product_id.data = bill_item.product_id or 0
             form.items[idx].form.description.data = bill_item.description
             form.items[idx].form.quantity.data = bill_item.quantity
             form.items[idx].form.unit_price.data = bill_item.unit_price
@@ -319,36 +300,29 @@ def edit_bill(id):
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.form.product_id.data or 0
-            if product_id == 0:
-                product_id = None
-
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
             unit_price = item_form.form.unit_price.data
 
-            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            is_blank = (not description) and (qty is None) and (unit_price is None)
             if is_blank:
                 continue
 
-            product = Product.query.get(product_id) if product_id else None
-            if not description and product:
-                description = product.description or ''
+            if not description:
+                flash('Each bill item must include a description.', 'danger')
+                return render_template('ap/edit_bill.html', title=f'Edit Bill {bill.number}', form=form, bill=bill)
 
             if qty is None:
                 flash('Each bill item must include a quantity.', 'danger')
                 return render_template('ap/edit_bill.html', title=f'Edit Bill {bill.number}', form=form, bill=bill)
 
-            if unit_price is None and product:
-                unit_price = product.cost if product.cost is not None else product.price
             if unit_price is None:
-                flash('Each bill item must include a unit price (or select an item with a default price).', 'danger')
+                flash('Each bill item must include a unit price.', 'danger')
                 return render_template('ap/edit_bill.html', title=f'Edit Bill {bill.number}', form=form, bill=bill)
 
             amount = float(qty) * float(unit_price)
             subtotal += amount
             item_rows.append({
-                'product_id': product_id,
                 'description': description,
                 'quantity': qty,
                 'unit_price': unit_price,
@@ -380,7 +354,6 @@ def edit_bill(id):
         for row in item_rows:
             bill_item = BillItem(
                 bill=bill,
-                product_id=row['product_id'],
                 description=row['description'],
                 quantity=row['quantity'],
                 unit_price=row['unit_price'],

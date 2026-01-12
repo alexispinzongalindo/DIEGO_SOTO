@@ -249,14 +249,8 @@ def create_invoice():
         flash('Create a customer before creating an invoice.', 'warning')
         return redirect(url_for('ar.create_customer'))
 
-    products = Product.query.order_by(Product.code.asc()).all()
-    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
-
     form = InvoiceForm()
     form.customer_id.choices = [(c.id, c.name) for c in customers]
-
-    for item_form in form.items:
-        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.date.data = date.today()
@@ -267,37 +261,29 @@ def create_invoice():
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.form.product_id.data or 0
-            if product_id == 0:
-                product_id = None
-
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
             unit_price = item_form.form.unit_price.data
 
-            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            is_blank = (not description) and (qty is None) and (unit_price is None)
             if is_blank:
                 continue
 
-            product = Product.query.get(product_id) if product_id else None
-            if not description and product:
-                description = product.description or ''
+            if not description:
+                flash('Each invoice item must include a description.', 'danger')
+                return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
 
             if qty is None:
                 flash('Each invoice item must include a quantity.', 'danger')
                 return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
 
-            if unit_price is None and product:
-                unit_price = product.price
             if unit_price is None:
-                flash('Each invoice item must include a unit price (or select an item with a default price).', 'danger')
+                flash('Each invoice item must include a unit price.', 'danger')
                 return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
 
             amount = float(qty) * float(unit_price)
             subtotal += amount
             item_rows.append({
-                'product': product,
-                'product_id': product_id,
                 'description': description,
                 'quantity': qty,
                 'unit_price': unit_price,
@@ -328,7 +314,6 @@ def create_invoice():
         for row in item_rows:
             inv_item = InvoiceItem(
                 invoice=invoice,
-                product_id=row['product_id'],
                 description=row['description'],
                 quantity=row['quantity'],
                 unit_price=row['unit_price'],
@@ -357,13 +342,8 @@ def create_quote():
         flash('Create a customer before creating a quote.', 'warning')
         return redirect(url_for('ar.create_customer'))
 
-    products = Product.query.order_by(Product.code.asc()).all()
-    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
-
     form = QuoteForm()
     form.customer_id.choices = [(c.id, c.name) for c in customers]
-    for item_form in form.items:
-        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.date.data = date.today()
@@ -375,36 +355,29 @@ def create_quote():
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.form.product_id.data or 0
-            if product_id == 0:
-                product_id = None
-
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
             unit_price = item_form.form.unit_price.data
 
-            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            is_blank = (not description) and (qty is None) and (unit_price is None)
             if is_blank:
                 continue
 
-            product = Product.query.get(product_id) if product_id else None
-            if not description and product:
-                description = product.description or ''
+            if not description:
+                flash('Each quote item must include a description.', 'danger')
+                return render_template('ar/create_quote.html', title='Create Quote', form=form)
 
             if qty is None:
                 flash('Each quote item must include a quantity.', 'danger')
                 return render_template('ar/create_quote.html', title='Create Quote', form=form)
 
-            if unit_price is None and product:
-                unit_price = product.price
             if unit_price is None:
-                flash('Each quote item must include a unit price (or select an item with a default price).', 'danger')
+                flash('Each quote item must include a unit price.', 'danger')
                 return render_template('ar/create_quote.html', title='Create Quote', form=form)
 
             amount = float(qty) * float(unit_price)
             subtotal += amount
             item_rows.append({
-                'product_id': product_id,
                 'description': description,
                 'quantity': qty,
                 'unit_price': unit_price,
@@ -434,7 +407,6 @@ def create_quote():
         for row in item_rows:
             q_item = QuoteItem(
                 quote=quote,
-                product_id=row['product_id'],
                 description=row['description'],
                 quantity=row['quantity'],
                 unit_price=row['unit_price'],
@@ -480,20 +452,14 @@ def edit_quote(id):
         flash('Create a customer before editing a quote.', 'warning')
         return redirect(url_for('ar.create_customer'))
 
-    products = Product.query.order_by(Product.code.asc()).all()
-    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
-
     form = QuoteForm(obj=quote)
     form.submit.label.text = 'Save Quote'
     form.customer_id.choices = [(c.id, c.name) for c in customers]
-    for item_form in form.items:
-        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.customer_id.data = quote.customer_id
         existing_items = quote.items.order_by(QuoteItem.id.asc()).all()
         for idx, q_item in enumerate(existing_items[: len(form.items)]):
-            form.items[idx].form.product_id.data = q_item.product_id or 0
             form.items[idx].form.description.data = q_item.description
             form.items[idx].form.quantity.data = q_item.quantity
             form.items[idx].form.unit_price.data = q_item.unit_price
@@ -502,36 +468,29 @@ def edit_quote(id):
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.form.product_id.data or 0
-            if product_id == 0:
-                product_id = None
-
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
             unit_price = item_form.form.unit_price.data
 
-            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            is_blank = (not description) and (qty is None) and (unit_price is None)
             if is_blank:
                 continue
 
-            product = Product.query.get(product_id) if product_id else None
-            if not description and product:
-                description = product.description or ''
+            if not description:
+                flash('Each quote item must include a description.', 'danger')
+                return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
 
             if qty is None:
                 flash('Each quote item must include a quantity.', 'danger')
                 return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
 
-            if unit_price is None and product:
-                unit_price = product.price
             if unit_price is None:
-                flash('Each quote item must include a unit price (or select an item with a default price).', 'danger')
+                flash('Each quote item must include a unit price.', 'danger')
                 return render_template('ar/edit_quote.html', title=f'Edit Quote {quote.number}', form=form, quote=quote)
 
             amount = float(qty) * float(unit_price)
             subtotal += amount
             item_rows.append({
-                'product_id': product_id,
                 'description': description,
                 'quantity': qty,
                 'unit_price': unit_price,
@@ -563,7 +522,6 @@ def edit_quote(id):
         for row in item_rows:
             q_item = QuoteItem(
                 quote=quote,
-                product_id=row['product_id'],
                 description=row['description'],
                 quantity=row['quantity'],
                 unit_price=row['unit_price'],
@@ -641,7 +599,6 @@ def convert_quote_to_invoice(id):
     for q_item in item_list:
         inv_item = InvoiceItem(
             invoice=invoice,
-            product_id=q_item.product_id,
             description=q_item.description,
             quantity=q_item.quantity,
             unit_price=q_item.unit_price,
@@ -673,21 +630,14 @@ def edit_invoice(id):
         flash('Create a customer before editing an invoice.', 'warning')
         return redirect(url_for('ar.create_customer'))
 
-    products = Product.query.order_by(Product.code.asc()).all()
-    product_choices = [(0, '-- Select --')] + [(p.id, f"{p.code} - {p.description}") for p in products]
-
     form = InvoiceForm(obj=invoice)
     form.submit.label.text = 'Save Invoice'
     form.customer_id.choices = [(c.id, c.name) for c in customers]
-
-    for item_form in form.items:
-        item_form.form.product_id.choices = product_choices
 
     if request.method == 'GET':
         form.customer_id.data = invoice.customer_id
         existing_items = invoice.items.order_by(InvoiceItem.id.asc()).all()
         for idx, inv_item in enumerate(existing_items[: len(form.items)]):
-            form.items[idx].form.product_id.data = inv_item.product_id or 0
             form.items[idx].form.description.data = inv_item.description
             form.items[idx].form.quantity.data = inv_item.quantity
             form.items[idx].form.unit_price.data = inv_item.unit_price
@@ -696,36 +646,29 @@ def edit_invoice(id):
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
-            product_id = item_form.form.product_id.data or 0
-            if product_id == 0:
-                product_id = None
-
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
             unit_price = item_form.form.unit_price.data
 
-            is_blank = (not product_id) and (not description) and (qty is None) and (unit_price is None)
+            is_blank = (not description) and (qty is None) and (unit_price is None)
             if is_blank:
                 continue
 
-            product = Product.query.get(product_id) if product_id else None
-            if not description and product:
-                description = product.description or ''
+            if not description:
+                flash('Each invoice item must include a description.', 'danger')
+                return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
 
             if qty is None:
                 flash('Each invoice item must include a quantity.', 'danger')
                 return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
 
-            if unit_price is None and product:
-                unit_price = product.price
             if unit_price is None:
-                flash('Each invoice item must include a unit price (or select an item with a default price).', 'danger')
+                flash('Each invoice item must include a unit price.', 'danger')
                 return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
 
             amount = float(qty) * float(unit_price)
             subtotal += amount
             item_rows.append({
-                'product_id': product_id,
                 'description': description,
                 'quantity': qty,
                 'unit_price': unit_price,
@@ -757,7 +700,6 @@ def edit_invoice(id):
         for row in item_rows:
             inv_item = InvoiceItem(
                 invoice=invoice,
-                product_id=row['product_id'],
                 description=row['description'],
                 quantity=row['quantity'],
                 unit_price=row['unit_price'],

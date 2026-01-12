@@ -916,7 +916,7 @@ def _tool_convert_quote_to_invoice(args: Dict[str, Any], lang: str) -> Dict[str,
         db.session.add(
             InvoiceItem(
                 invoice=invoice,
-                product_id=q_item.product_id,
+                product_id=None,
                 description=q_item.description,
                 quantity=q_item.quantity,
                 unit_price=q_item.unit_price,
