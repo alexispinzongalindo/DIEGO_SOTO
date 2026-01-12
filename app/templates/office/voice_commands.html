@@ -3,14 +3,25 @@
 {% block title %}Voice Commands{% endblock %}
 
 {% block content %}
+<div data-voice-commands-container>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h3 class="mb-0">Voice Commands</h3>
-    <div class="text-muted">Instructions (separate from User Manual)</div>
+    <h3 class="mb-0" id="voiceCommandsTitle">Voice Commands</h3>
+    <div class="text-muted" id="voiceCommandsSubtitle">Instructions (separate from User Manual)</div>
   </div>
-  <div class="d-flex gap-2">
-    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('office.settings') }}">Back to Settings</a>
-    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('office.instructions') }}">Open User Manual</a>
+  <div class="d-flex gap-2 align-items-center">
+    <div class="btn-group" role="group" aria-label="Language">
+      <button type="button" class="btn btn-sm btn-outline-primary" data-voice-commands-lang-btn="en">English</button>
+      <button type="button" class="btn btn-sm btn-outline-primary" data-voice-commands-lang-btn="es">Español</button>
+    </div>
+    <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('office.settings') }}">
+      <span data-lang="en">Back to Settings</span>
+      <span data-lang="es">Volver a Settings</span>
+    </a>
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('office.instructions') }}">
+      <span data-lang="en">Open User Manual</span>
+      <span data-lang="es">Abrir Manual</span>
+    </a>
   </div>
 </div>
 
@@ -18,27 +29,53 @@
   <div class="col-lg-4">
     <div class="card shadow-sm">
       <div class="card-body">
-        <div class="fw-semibold mb-2">Quick start</div>
-        <ol class="mb-0">
-          <li>Click the <strong>mic</strong> icon in the top bar.</li>
-          <li>Choose <strong>English</strong> or <strong>Español</strong> (or Auto).</li>
-          <li>Press <strong>Start</strong> and speak clearly.</li>
-          <li>Watch the transcript and the assistant response.</li>
-        </ol>
+        <div class="fw-semibold mb-2">
+          <span data-lang="en">Quick start</span>
+          <span data-lang="es">Inicio rápido</span>
+        </div>
+        <div data-lang="en">
+          <ol class="mb-0">
+            <li>Click the <strong>mic</strong> icon in the top bar.</li>
+            <li>Choose <strong>English</strong> or <strong>Español</strong> (or Auto).</li>
+            <li>Press <strong>Start</strong> and speak clearly.</li>
+            <li>Watch the transcript and the assistant response.</li>
+          </ol>
+        </div>
+        <div data-lang="es">
+          <ol class="mb-0">
+            <li>Haz clic en el icono de <strong>micrófono</strong> en la barra superior.</li>
+            <li>Elige <strong>English</strong> o <strong>Español</strong> (o Auto).</li>
+            <li>Presiona <strong>Start</strong> y habla claro.</li>
+            <li>Mira la transcripción y la respuesta del asistente.</li>
+          </ol>
+        </div>
         <div class="alert alert-light border mt-3 mb-0" role="status">
-          If the assistant asks <strong>“Do you confirm?”</strong>, answer <strong>yes/no</strong> (or <strong>sí/no</strong>).
+          <span data-lang="en">If the assistant asks <strong>“Do you confirm?”</strong>, answer <strong>yes/no</strong> (or <strong>sí/no</strong>).</span>
+          <span data-lang="es">Si el asistente pregunta <strong>“Do you confirm?”</strong>, responde <strong>sí/no</strong> (o <strong>yes/no</strong>).</span>
         </div>
       </div>
     </div>
 
     <div class="card shadow-sm mt-3">
       <div class="card-body">
-        <div class="fw-semibold mb-2">Tips</div>
-        <ul class="mb-0">
-          <li>Use short sentences (one request at a time).</li>
-          <li>Say the customer name exactly as it appears in the system.</li>
-          <li>For document emails, specify who to send it to (email address).</li>
-        </ul>
+        <div class="fw-semibold mb-2">
+          <span data-lang="en">Tips</span>
+          <span data-lang="es">Consejos</span>
+        </div>
+        <div data-lang="en">
+          <ul class="mb-0">
+            <li>Use short sentences (one request at a time).</li>
+            <li>Say the customer name exactly as it appears in the system.</li>
+            <li>For document emails, specify who to send it to (email address).</li>
+          </ul>
+        </div>
+        <div data-lang="es">
+          <ul class="mb-0">
+            <li>Usa frases cortas (una petición a la vez).</li>
+            <li>Di el nombre del cliente exactamente como aparece en el sistema.</li>
+            <li>Para enviar documentos por email, especifica a quién enviarlo (correo electrónico).</li>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
@@ -49,25 +86,59 @@
       <div class="accordion-item">
         <h2 class="accordion-header" id="vc-heading-1">
           <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-1" aria-expanded="true" aria-controls="vc-collapse-1">
-            Navigation & Search (voice)
+            <span data-lang="en">Navigation & Search (voice)</span>
+            <span data-lang="es">Navegación y Búsqueda (voz)</span>
           </button>
         </h2>
         <div id="vc-collapse-1" class="accordion-collapse collapse show" aria-labelledby="vc-heading-1" data-bs-parent="#voiceCommandsAccordion">
           <div class="accordion-body">
-            <div class="text-muted small mb-2">Use these commands to open pages quickly.</div>
+            <div class="text-muted small mb-2">
+              <span data-lang="en">Use these commands to open pages quickly.</span>
+              <span data-lang="es">Usa estos comandos para abrir páginas rápido.</span>
+            </div>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead>
                   <tr>
-                    <th style="width: 35%">Example command</th>
-                    <th>What it does</th>
+                    <th style="width: 35%">
+                      <span data-lang="en">Example command</span>
+                      <span data-lang="es">Comando de ejemplo</span>
+                    </th>
+                    <th>
+                      <span data-lang="en">What it does</span>
+                      <span data-lang="es">Qué hace</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td><code>dashboard</code></td><td>Open Dashboard</td></tr>
-                  <tr><td><code>open invoices</code></td><td>Open Invoices</td></tr>
-                  <tr><td><code>open agenda</code></td><td>Open Agenda</td></tr>
-                  <tr><td><code>notifications</code></td><td>Open Notifications</td></tr>
+                  <tr>
+                    <td><code>dashboard</code></td>
+                    <td>
+                      <span data-lang="en">Open Dashboard</span>
+                      <span data-lang="es">Abrir Dashboard</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>open invoices</code></td>
+                    <td>
+                      <span data-lang="en">Open Invoices</span>
+                      <span data-lang="es">Abrir Invoices</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>open agenda</code></td>
+                    <td>
+                      <span data-lang="en">Open Agenda</span>
+                      <span data-lang="es">Abrir Agenda</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>notifications</code></td>
+                    <td>
+                      <span data-lang="en">Open Notifications</span>
+                      <span data-lang="es">Abrir Notificaciones</span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -78,27 +149,73 @@
       <div class="accordion-item">
         <h2 class="accordion-header" id="vc-heading-2">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-2" aria-expanded="false" aria-controls="vc-collapse-2">
-            Invoices, customers, payments
+            <span data-lang="en">Invoices, customers, payments</span>
+            <span data-lang="es">Facturas, clientes, pagos</span>
           </button>
         </h2>
         <div id="vc-collapse-2" class="accordion-collapse collapse" aria-labelledby="vc-heading-2" data-bs-parent="#voiceCommandsAccordion">
           <div class="accordion-body">
-            <div class="text-muted small mb-2">Some actions may require confirmation.</div>
+            <div class="text-muted small mb-2">
+              <span data-lang="en">Some actions may require confirmation.</span>
+              <span data-lang="es">Algunas acciones pueden requerir confirmación.</span>
+            </div>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead>
                   <tr>
-                    <th style="width: 35%">Example command</th>
-                    <th>What it does</th>
+                    <th style="width: 35%">
+                      <span data-lang="en">Example command</span>
+                      <span data-lang="es">Comando de ejemplo</span>
+                    </th>
+                    <th>
+                      <span data-lang="en">What it does</span>
+                      <span data-lang="es">Qué hace</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td><code>overdue invoices</code></td><td>List overdue invoices and open Invoices</td></tr>
-                  <tr><td><code>create customer John Smith, email john@acme.com</code></td><td>Create a new customer</td></tr>
-                  <tr><td><code>create invoice for Acme for 1200</code></td><td>Create an invoice</td></tr>
-                  <tr><td><code>email invoice 1021 to billing@acme.com</code></td><td>Email an invoice</td></tr>
-                  <tr><td><code>record payment of 200 from Acme</code></td><td>Record a payment</td></tr>
-                  <tr><td><code>what is Acme balance?</code></td><td>Get customer balance</td></tr>
+                  <tr>
+                    <td><code>overdue invoices</code></td>
+                    <td>
+                      <span data-lang="en">List overdue invoices and open Invoices</span>
+                      <span data-lang="es">Listar facturas vencidas y abrir Invoices</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>create customer John Smith, email john@acme.com</code></td>
+                    <td>
+                      <span data-lang="en">Create a new customer</span>
+                      <span data-lang="es">Crear un cliente nuevo</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>create invoice for Acme for 1200</code></td>
+                    <td>
+                      <span data-lang="en">Create an invoice</span>
+                      <span data-lang="es">Crear una factura</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>email invoice 1021 to billing@acme.com</code></td>
+                    <td>
+                      <span data-lang="en">Email an invoice</span>
+                      <span data-lang="es">Enviar una factura por email</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>record payment of 200 from Acme</code></td>
+                    <td>
+                      <span data-lang="en">Record a payment</span>
+                      <span data-lang="es">Registrar un pago</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>what is Acme balance?</code></td>
+                    <td>
+                      <span data-lang="en">Get customer balance</span>
+                      <span data-lang="es">Ver balance del cliente</span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -109,29 +226,73 @@
       <div class="accordion-item">
         <h2 class="accordion-header" id="vc-heading-3">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-3" aria-expanded="false" aria-controls="vc-collapse-3">
-            Quotes, bills, purchase orders
+            <span data-lang="en">Quotes, bills, purchase orders</span>
+            <span data-lang="es">Cotizaciones, cuentas (bills), órdenes de compra</span>
           </button>
         </h2>
         <div id="vc-collapse-3" class="accordion-collapse collapse" aria-labelledby="vc-heading-3" data-bs-parent="#voiceCommandsAccordion">
           <div class="accordion-body">
             <div class="alert alert-warning" role="alert">
-              For <strong>delete</strong>, <strong>convert</strong>, and <strong>email</strong>, the assistant may ask for confirmation.
+              <span data-lang="en">For <strong>delete</strong>, <strong>convert</strong>, and <strong>email</strong>, the assistant may ask for confirmation.</span>
+              <span data-lang="es">Para <strong>delete</strong>, <strong>convert</strong> y <strong>email</strong>, el asistente puede pedir confirmación.</span>
             </div>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead>
                   <tr>
-                    <th style="width: 35%">Example command</th>
-                    <th>What it does</th>
+                    <th style="width: 35%">
+                      <span data-lang="en">Example command</span>
+                      <span data-lang="es">Comando de ejemplo</span>
+                    </th>
+                    <th>
+                      <span data-lang="en">What it does</span>
+                      <span data-lang="es">Qué hace</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td><code>create quote for Acme for 500</code></td><td>Create a quote</td></tr>
-                  <tr><td><code>email quote 55 to sales@acme.com</code></td><td>Email a quote</td></tr>
-                  <tr><td><code>convert quote 55 to invoice</code></td><td>Convert quote to invoice</td></tr>
-                  <tr><td><code>delete quote 55</code></td><td>Delete a quote</td></tr>
-                  <tr><td><code>create bill for vendor ACME for 180</code></td><td>Create a bill</td></tr>
-                  <tr><td><code>create purchase order vendor for ACME for 500</code></td><td>Create a purchase order</td></tr>
+                  <tr>
+                    <td><code>create quote for Acme for 500</code></td>
+                    <td>
+                      <span data-lang="en">Create a quote</span>
+                      <span data-lang="es">Crear una cotización</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>email quote 55 to sales@acme.com</code></td>
+                    <td>
+                      <span data-lang="en">Email a quote</span>
+                      <span data-lang="es">Enviar una cotización por email</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>convert quote 55 to invoice</code></td>
+                    <td>
+                      <span data-lang="en">Convert quote to invoice</span>
+                      <span data-lang="es">Convertir cotización a factura</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>delete quote 55</code></td>
+                    <td>
+                      <span data-lang="en">Delete a quote</span>
+                      <span data-lang="es">Eliminar una cotización</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>create bill for vendor ACME for 180</code></td>
+                    <td>
+                      <span data-lang="en">Create a bill</span>
+                      <span data-lang="es">Crear una cuenta (bill)</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>create purchase order vendor for ACME for 500</code></td>
+                    <td>
+                      <span data-lang="en">Create a purchase order</span>
+                      <span data-lang="es">Crear una orden de compra</span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -142,25 +303,59 @@
       <div class="accordion-item">
         <h2 class="accordion-header" id="vc-heading-4">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-4" aria-expanded="false" aria-controls="vc-collapse-4">
-            Document Library: ask for documents, email documents, create projects
+            <span data-lang="en">Document Library: ask for documents, email documents, create projects</span>
+            <span data-lang="es">Biblioteca de Documentos: buscar documentos, enviar por email, crear proyectos</span>
           </button>
         </h2>
         <div id="vc-collapse-4" class="accordion-collapse collapse" aria-labelledby="vc-heading-4" data-bs-parent="#voiceCommandsAccordion">
           <div class="accordion-body">
-            <div class="text-muted small mb-2">“Create documents” currently means uploading/adding documents in the Document Library (not generating a new PDF from scratch).</div>
+            <div class="text-muted small mb-2">
+              <span data-lang="en">“Create documents” currently means uploading/adding documents in the Document Library (not generating a new PDF from scratch).</span>
+              <span data-lang="es">“Crear documentos” por ahora significa subir/agregar documentos en la Biblioteca de Documentos (no generar un PDF desde cero).</span>
+            </div>
             <div class="table-responsive">
               <table class="table table-sm align-middle">
                 <thead>
                   <tr>
-                    <th style="width: 35%">Example command</th>
-                    <th>What it does</th>
+                    <th style="width: 35%">
+                      <span data-lang="en">Example command</span>
+                      <span data-lang="es">Comando de ejemplo</span>
+                    </th>
+                    <th>
+                      <span data-lang="en">What it does</span>
+                      <span data-lang="es">Qué hace</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr><td><code>search documents contract</code></td><td>Search the Document Library by title/description/filename</td></tr>
-                  <tr><td><code>create library project Renovation 2026</code></td><td>Create a Document Library project</td></tr>
-                  <tr><td><code>email document 12 to alex@company.com</code></td><td>Email a library document as an attachment</td></tr>
-                  <tr><td><code>email document 12 to alex@company.com with message please review</code></td><td>Email document with a message</td></tr>
+                  <tr>
+                    <td><code>search documents contract</code></td>
+                    <td>
+                      <span data-lang="en">Search the Document Library by title/description/filename</span>
+                      <span data-lang="es">Buscar en la Biblioteca por título/descripcion/nombre de archivo</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>create library project Renovation 2026</code></td>
+                    <td>
+                      <span data-lang="en">Create a Document Library project</span>
+                      <span data-lang="es">Crear un proyecto en la Biblioteca de Documentos</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>email document 12 to alex@company.com</code></td>
+                    <td>
+                      <span data-lang="en">Email a library document as an attachment</span>
+                      <span data-lang="es">Enviar un documento de la Biblioteca como adjunto</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>email document 12 to alex@company.com with message please review</code></td>
+                    <td>
+                      <span data-lang="en">Email document with a message</span>
+                      <span data-lang="es">Enviar documento con un mensaje</span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -171,15 +366,19 @@
       <div class="accordion-item">
         <h2 class="accordion-header" id="vc-heading-5">
           <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#vc-collapse-5" aria-expanded="false" aria-controls="vc-collapse-5">
-            Troubleshooting
+            <span data-lang="en">Troubleshooting</span>
+            <span data-lang="es">Solución de problemas</span>
           </button>
         </h2>
         <div id="vc-collapse-5" class="accordion-collapse collapse" aria-labelledby="vc-heading-5" data-bs-parent="#voiceCommandsAccordion">
           <div class="accordion-body">
             <ul class="mb-0">
-              <li>If voice is not supported, try Chrome.</li>
-              <li>If actions fail, verify you are logged in and have permissions.</li>
-              <li>If OpenAI is not enabled on the server, some assistant actions will be limited.</li>
+              <li data-lang="en">If voice is not supported, try Chrome.</li>
+              <li data-lang="es">Si la voz no funciona, intenta con Chrome.</li>
+              <li data-lang="en">If actions fail, verify you are logged in and have permissions.</li>
+              <li data-lang="es">Si las acciones fallan, verifica que iniciaste sesión y tienes permisos.</li>
+              <li data-lang="en">If OpenAI is not enabled on the server, some assistant actions will be limited.</li>
+              <li data-lang="es">Si OpenAI no está habilitado en el servidor, algunas acciones del asistente serán limitadas.</li>
             </ul>
           </div>
         </div>
@@ -188,4 +387,57 @@
     </div>
   </div>
 </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const titleEl = document.getElementById('voiceCommandsTitle');
+  const subtitleEl = document.getElementById('voiceCommandsSubtitle');
+  const container = document.querySelector('[data-voice-commands-container]');
+  const langButtons = Array.prototype.slice.call(document.querySelectorAll('[data-voice-commands-lang-btn]'));
+  if (!container) return;
+
+  function setLang(lang) {
+    const active = (lang === 'es') ? 'es' : 'en';
+    try {
+      window.localStorage.setItem('voice_commands_lang', active);
+    } catch (e) {
+      // ignore
+    }
+
+    const allLangEls = Array.prototype.slice.call(container.querySelectorAll('[data-lang]'));
+    allLangEls.forEach((el) => {
+      const elLang = (el.getAttribute('data-lang') || '').toLowerCase();
+      el.style.display = (elLang === active) ? '' : 'none';
+    });
+
+    langButtons.forEach((btn) => {
+      const btnLang = (btn.getAttribute('data-voice-commands-lang-btn') || '').toLowerCase();
+      const isActive = btnLang === active;
+      btn.classList.toggle('btn-primary', isActive);
+      btn.classList.toggle('btn-outline-primary', !isActive);
+    });
+
+    if (titleEl) titleEl.textContent = active === 'es' ? 'Comandos de Voz' : 'Voice Commands';
+    if (subtitleEl) subtitleEl.textContent = active === 'es' ? 'Instrucciones (separado del Manual)' : 'Instructions (separate from User Manual)';
+  }
+
+  langButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const lang = (btn.getAttribute('data-voice-commands-lang-btn') || 'en').toLowerCase();
+      setLang(lang);
+    });
+  });
+
+  let initial = 'en';
+  try {
+    initial = (window.localStorage.getItem('voice_commands_lang') || 'en').toLowerCase();
+  } catch (e) {
+    initial = 'en';
+  }
+  setLang(initial);
+})();
+</script>
 {% endblock %}
