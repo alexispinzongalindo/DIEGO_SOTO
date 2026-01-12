@@ -9,19 +9,22 @@ from app.purchase_orders import bp
 from app.purchase_orders.forms import PurchaseOrderForm, DeleteForm
 
 
+def _digits_only(value: str) -> str:
+    raw = (value or '').strip()
+    digits = ''.join([c for c in raw if c.isdigit()])
+    return digits
+
+
 def _next_po_number() -> str:
     last = PurchaseOrder.query.order_by(PurchaseOrder.id.desc()).first()
     if not last or not last.number:
-        return 'PO-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('PO-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"PO-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"PO-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 @bp.route('/purchase-orders')

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import os
 
-from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_file
+from flask import render_template, redirect, url_for, flash, request, jsonify, current_app, send_file, session
 from flask_login import login_required, current_user
 
 from app import db
@@ -515,12 +515,40 @@ def assistant_command():
     raw_text = (payload.get('text') or '').strip()
     text = raw_text.lower()
     lang = (payload.get('lang') or '').strip().lower()
+
+    if not lang:
+        stored_lang = (session.get('assistant_lang') or '').strip().lower()
+        lang = stored_lang
+
+    if not lang and raw_text:
+        lowered = (raw_text or '').strip().lower()
+        if lowered in ('en', 'english', 'inglés', 'ingles'):
+            lang = 'en'
+        elif lowered in ('es', 'spanish', 'español', 'espanol'):
+            lang = 'es'
+
+    if not lang:
+        return jsonify({'speak': 'Choose language: English or Español.'})
+
+    session['assistant_lang'] = lang
     is_es = lang.startswith('es')
+
+    greeted_key = 'assistant_greeted'
+    should_greet = not bool(session.get(greeted_key))
+    if should_greet:
+        session[greeted_key] = True
+
+    if should_greet and not raw_text:
+        return jsonify({'speak': ('Hola. ¿En qué te puedo ayudar hoy?' if is_es else 'Hi. How can I help you today?')})
     pid = os.getpid()
 
     if current_app.config.get('OPENAI_API_KEY'):
         try:
-            return jsonify(run_assistant(raw_text, lang, current_user))
+            result = run_assistant(raw_text, lang, current_user)
+            if should_greet and isinstance(result, dict) and (result.get('speak') or '').strip():
+                prefix = ('Hola. ' if is_es else 'Hi. ')
+                result['speak'] = prefix + (result.get('speak') or '')
+            return jsonify(result)
         except Exception as e:
             db.session.rollback()
             msg = str(e) or 'unknown error'

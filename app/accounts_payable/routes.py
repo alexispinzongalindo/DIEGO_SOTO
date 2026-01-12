@@ -9,6 +9,12 @@ from app.accounts_payable.forms import VendorForm, BillForm, VendorPaymentForm, 
 from app.models import Vendor, Bill, VendorPayment, BillItem
 
 
+def _digits_only(value: str) -> str:
+    raw = (value or '').strip()
+    digits = ''.join([c for c in raw if c.isdigit()])
+    return digits
+
+
 @bp.route('/bills')
 @login_required
 def bills():
@@ -101,6 +107,10 @@ def create_bill():
             form.vendor_id.data = vendors[0].id
 
     if form.validate_on_submit():
+        bill_number = _digits_only(form.number.data)
+        if not bill_number:
+            flash('Bill number must contain only numbers.', 'danger')
+            return render_template('ap/create_bill.html', title='Create Bill', form=form)
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
@@ -141,7 +151,7 @@ def create_bill():
         total = subtotal + tax
 
         bill = Bill(
-            number=form.number.data,
+            number=bill_number,
             date=form.date.data,
             due_date=form.due_date.data,
             vendor_id=form.vendor_id.data,
@@ -297,6 +307,10 @@ def edit_bill(id):
             form.items[idx].form.unit_price.data = bill_item.unit_price
 
     if form.validate_on_submit():
+        bill_number = _digits_only(form.number.data)
+        if not bill_number:
+            flash('Bill number must contain only numbers.', 'danger')
+            return render_template('ap/edit_bill.html', title=f'Edit Bill {bill.number}', form=form, bill=bill)
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
@@ -336,7 +350,7 @@ def edit_bill(id):
         tax = float(form.tax.data or 0)
         total = subtotal + tax
 
-        bill.number = form.number.data
+        bill.number = bill_number
         bill.date = form.date.data
         bill.due_date = form.due_date.data
         bill.vendor_id = form.vendor_id.data

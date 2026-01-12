@@ -2,7 +2,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, SubmitField, SelectField, FormField, FieldList
 from wtforms.form import Form
 from wtforms.fields import DateField, DecimalField
-from wtforms.validators import DataRequired, Optional, Length, Email, NumberRange
+from wtforms.validators import DataRequired, Optional, Length, Email, NumberRange, Regexp
 
 
 class VendorForm(FlaskForm):
@@ -22,7 +22,10 @@ class BillItemForm(Form):
 
 
 class BillForm(FlaskForm):
-    number = StringField('Bill #', validators=[DataRequired(), Length(max=20)])
+    number = StringField(
+        'Bill #',
+        validators=[DataRequired(), Length(max=20), Regexp(r'^\d+$', message='Numbers only.')],
+    )
     date = DateField('Bill Date', validators=[DataRequired()])
     due_date = DateField('Due Date', validators=[Optional()])
     vendor_id = SelectField('Vendor', coerce=int, validators=[DataRequired()])

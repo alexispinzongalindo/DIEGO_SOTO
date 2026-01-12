@@ -12,6 +12,12 @@ from app.auth.email import send_email_with_attachments_sync
 from app.models import Customer, Invoice, Quote, Payment, InvoiceItem, QuoteItem, Product
 
 
+def _digits_only(value: str) -> str:
+    raw = (value or '').strip()
+    digits = ''.join([c for c in raw if c.isdigit()])
+    return digits
+
+
 def _build_invoice_pdf(invoice, items):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -68,31 +74,25 @@ def _build_invoice_pdf(invoice, items):
 def _next_quote_number():
     last = Quote.query.order_by(Quote.id.desc()).first()
     if not last or not last.number:
-        return 'Q-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('Q-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"Q-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"Q-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 def _next_invoice_number():
     last = Invoice.query.order_by(Invoice.id.desc()).first()
     if not last or not last.number:
-        return 'INV-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('INV-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"INV-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"INV-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 @bp.route('/invoices')
@@ -256,8 +256,14 @@ def create_invoice():
         form.date.data = date.today()
         if not form.customer_id.data:
             form.customer_id.data = customers[0].id
+        if not (form.number.data or '').strip():
+            form.number.data = _next_invoice_number()
 
     if form.validate_on_submit():
+        invoice_number = _digits_only(form.number.data)
+        if not invoice_number:
+            flash('Invoice number must contain only numbers.', 'danger')
+            return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
@@ -297,8 +303,13 @@ def create_invoice():
         tax = float(form.tax.data or 0)
         total = subtotal + tax
 
+        invoice_number = _digits_only(form.number.data)
+        if not invoice_number:
+            flash('Invoice number must contain only numbers.', 'danger')
+            return render_template('ar/create_invoice.html', title='Create Invoice', form=form)
+
         invoice = Invoice(
-            number=form.number.data,
+            number=invoice_number,
             date=form.date.data,
             due_date=form.due_date.data,
             customer_id=form.customer_id.data,
@@ -621,12 +632,10 @@ def convert_quote_to_invoice(id):
     flash('Quote converted to invoice.', 'success')
     return redirect(url_for('ar.view_invoice', id=invoice.id))
 
-
 @bp.route('/invoice/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_invoice(id):
     invoice = Invoice.query.get_or_404(id)
-
     customers = Customer.query.order_by(Customer.name.asc()).all()
     if not customers:
         flash('Create a customer before editing an invoice.', 'warning')
@@ -684,7 +693,7 @@ def edit_invoice(id):
         tax = float(form.tax.data or 0)
         total = subtotal + tax
 
-        invoice.number = form.number.data
+        invoice.number = invoice_number
         invoice.date = form.date.data
         invoice.due_date = form.due_date.data
         invoice.customer_id = form.customer_id.data

@@ -87,6 +87,12 @@ def send_email_sync(subject, sender, recipients, text_body, html_body):
     msg = Message(subject, sender=sender, recipients=recipients)
     msg.body = text_body
     msg.html = html_body
+    if not (current_app.config.get('MAIL_SERVER') or '').strip():
+        raise RuntimeError(
+            'Email is not configured. Set RESEND_API_KEY+RESEND_FROM, or SENDGRID_API_KEY+SENDGRID_FROM, '
+            'or MAIL_SERVER/MAIL_PORT (SMTP).'
+        )
+
     try:
         socket.setdefaulttimeout(int(current_app.config.get('MAIL_TIMEOUT') or 10))
         mail.send(msg)
@@ -134,28 +140,41 @@ def _send_email_with_attachments_safe(app, subject, sender, recipients, text_bod
 
 def send_email_with_attachments_sync(subject, sender, recipients, text_body, html_body, attachments):
     resend_key = (current_app.config.get('RESEND_API_KEY') or '').strip()
-    if resend_key:
-        return _send_via_resend(
-            api_key=resend_key,
-            subject=subject,
-            sender=sender,
-            recipients=recipients,
-            text_body=text_body,
-            html_body=html_body,
-            attachments=attachments,
-        )
+    resend_from = (current_app.config.get('RESEND_FROM') or '').strip()
+    if resend_key and resend_from:
+        try:
+            return _send_via_resend(
+                api_key=resend_key,
+                subject=subject,
+                sender=sender,
+                recipients=recipients,
+                text_body=text_body,
+                html_body=html_body,
+                attachments=attachments,
+            )
+        except Exception:
+            current_app.logger.exception('Resend send failed; falling back to next provider')
 
     sendgrid_key = (current_app.config.get('SENDGRID_API_KEY') or '').strip()
-    if sendgrid_key:
-        return _send_via_sendgrid(
-            api_key=sendgrid_key,
-            subject=subject,
-            sender=sender,
-            recipients=recipients,
-            text_body=text_body,
-            html_body=html_body,
-            attachments=attachments,
-        )
+    sendgrid_from = (current_app.config.get('SENDGRID_FROM') or '').strip()
+    if sendgrid_key and sendgrid_from:
+        try:
+            return _send_via_sendgrid(
+                api_key=sendgrid_key,
+                subject=subject,
+                sender=sender,
+                recipients=recipients,
+                text_body=text_body,
+                html_body=html_body,
+                attachments=attachments,
+            )
+        except Exception:
+            current_app.logger.exception('SendGrid send failed; falling back to SMTP')
+
+    if resend_key and not resend_from:
+        current_app.logger.error('RESEND_API_KEY is set but RESEND_FROM is not set; skipping Resend')
+    if sendgrid_key and not sendgrid_from:
+        current_app.logger.error('SENDGRID_API_KEY is set but SENDGRID_FROM is not set; skipping SendGrid')
 
     msg = Message(subject, sender=sender, recipients=recipients)
     msg.body = text_body
@@ -164,6 +183,12 @@ def send_email_with_attachments_sync(subject, sender, recipients, text_body, htm
     for attachment in attachments or []:
         filename, content_type, data = attachment
         msg.attach(filename, content_type, data)
+
+    if not (current_app.config.get('MAIL_SERVER') or '').strip():
+        raise RuntimeError(
+            'Email is not configured. Set RESEND_API_KEY+RESEND_FROM, or SENDGRID_API_KEY+SENDGRID_FROM, '
+            'or MAIL_SERVER/MAIL_PORT (SMTP).'
+        )
 
     try:
         socket.setdefaulttimeout(int(current_app.config.get('MAIL_TIMEOUT') or 10))
@@ -174,7 +199,7 @@ def send_email_with_attachments_sync(subject, sender, recipients, text_body, htm
 
 
 def _send_via_sendgrid(api_key, subject, sender, recipients, text_body, html_body, attachments):
-    from_email = (current_app.config.get('SENDGRID_FROM') or sender or '').strip()
+    from_email = (current_app.config.get('SENDGRID_FROM') or '').strip()
     if not from_email:
         raise RuntimeError('SendGrid is enabled but SENDGRID_FROM is not set.')
 
@@ -204,18 +229,21 @@ def _send_via_sendgrid(api_key, subject, sender, recipients, text_body, html_bod
         payload['attachments'] = sg_attachments
 
     timeout = int(current_app.config.get('SENDGRID_TIMEOUT') or 10)
-    resp = requests.post(
-        'https://api.sendgrid.com/v3/mail/send',
-        json=payload,
-        headers={'Authorization': f'Bearer {api_key}'},
-        timeout=timeout,
-    )
+    try:
+        resp = requests.post(
+            'https://api.sendgrid.com/v3/mail/send',
+            json=payload,
+            headers={'Authorization': f'Bearer {api_key}'},
+            timeout=timeout,
+        )
+    except Exception as e:
+        raise RuntimeError(f'SendGrid send failed: {e}') from e
     if resp.status_code >= 400:
         raise RuntimeError(f'SendGrid send failed: {resp.status_code} {resp.text}')
 
 
 def _send_via_resend(api_key, subject, sender, recipients, text_body, html_body, attachments):
-    from_email = (current_app.config.get('RESEND_FROM') or sender or '').strip()
+    from_email = (current_app.config.get('RESEND_FROM') or '').strip()
     if not from_email:
         raise RuntimeError('Resend is enabled but RESEND_FROM is not set.')
 
@@ -248,12 +276,15 @@ def _send_via_resend(api_key, subject, sender, recipients, text_body, html_body,
         payload['attachments'] = rs_attachments
 
     timeout = int(current_app.config.get('RESEND_TIMEOUT') or 10)
-    resp = requests.post(
-        'https://api.resend.com/emails',
-        json=payload,
-        headers={'Authorization': f'Bearer {api_key}'},
-        timeout=timeout,
-    )
+    try:
+        resp = requests.post(
+            'https://api.resend.com/emails',
+            json=payload,
+            headers={'Authorization': f'Bearer {api_key}'},
+            timeout=timeout,
+        )
+    except Exception as e:
+        raise RuntimeError(f'Resend send failed: {e}') from e
     if resp.status_code >= 400:
         raise RuntimeError(f'Resend send failed: {resp.status_code} {resp.text}')
 

@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional
 
 import requests
 from dateutil import parser
-from flask import current_app, url_for
+from flask import current_app, url_for, session
 from fpdf import FPDF
 
 from app import db
@@ -23,6 +23,163 @@ def _utc_now() -> datetime:
 
 def _is_es(lang: str) -> bool:
     return (lang or '').strip().lower().startswith('es')
+
+
+def _is_affirmative(text: str) -> bool:
+    t = (text or '').strip().lower()
+    return t in (
+        'yes', 'y', 'yeah', 'yep', 'ok', 'okay', 'confirm', 'confirmed', 'sure',
+        'si', 'sí', 's', 'claro', 'confirmar', 'confirmado', 'dale',
+    )
+
+
+def _is_negative(text: str) -> bool:
+    t = (text or '').strip().lower()
+    return t in (
+        'no', 'n', 'nope', 'cancel', 'cancelar', 'cancela', 'stop', 'detener',
+    )
+
+
+def _pending_key() -> str:
+    return 'assistant_pending_action'
+
+
+def _confirm_required_tool_names() -> set[str]:
+    return {
+        'create_customer',
+        'create_invoice',
+        'create_bill',
+        'create_quote',
+        'create_purchase_order',
+        'create_meeting',
+        'record_payment',
+        'email_invoice',
+        'email_quote',
+        'email_purchase_order',
+        'email_library_document',
+        'delete_quote',
+        'convert_quote_to_invoice',
+    }
+
+
+def _format_action_readback(tool_name: str, args: Dict[str, Any], lang: str) -> str:
+    is_es = _is_es(lang)
+    tool_name = (tool_name or '').strip()
+    args = args or {}
+
+    if tool_name == 'create_invoice':
+        return (
+            f"Voy a crear una factura para '{(args.get('customer_name') or '').strip()}' "
+            f"por {(args.get('amount') or '')}. Descripción: '{(args.get('description') or '').strip()}'. "
+            f"Fecha: {(args.get('date') or '')}. Vence: {(args.get('due_date') or '')}. Impuesto: {(args.get('tax') or 0)}."
+            if is_es else
+            f"I will create an invoice for '{(args.get('customer_name') or '').strip()}' "
+            f"for {(args.get('amount') or '')}. Description: '{(args.get('description') or '').strip()}'. "
+            f"Date: {(args.get('date') or '')}. Due: {(args.get('due_date') or '')}. Tax: {(args.get('tax') or 0)}."
+        )
+
+    if tool_name == 'create_bill':
+        return (
+            f"Voy a crear una cuenta para '{(args.get('vendor_name') or '').strip()}' "
+            f"por {(args.get('amount') or '')}. Descripción: '{(args.get('description') or '').strip()}'. "
+            f"Fecha: {(args.get('date') or '')}. Vence: {(args.get('due_date') or '')}. Impuesto: {(args.get('tax') or 0)}."
+            if is_es else
+            f"I will create a bill for '{(args.get('vendor_name') or '').strip()}' "
+            f"for {(args.get('amount') or '')}. Description: '{(args.get('description') or '').strip()}'. "
+            f"Date: {(args.get('date') or '')}. Due: {(args.get('due_date') or '')}. Tax: {(args.get('tax') or 0)}."
+        )
+
+    if tool_name == 'create_purchase_order':
+        who = (args.get('vendor_name') or '').strip() or (args.get('customer_name') or '').strip()
+        return (
+            f"Voy a crear una orden de compra ({(args.get('po_type') or '').strip()}) para '{who}' "
+            f"por {(args.get('amount') or '')}. Descripción: '{(args.get('description') or '').strip()}'. Fecha: {(args.get('date') or '')}."
+            if is_es else
+            f"I will create a purchase order ({(args.get('po_type') or '').strip()}) for '{who}' "
+            f"for {(args.get('amount') or '')}. Description: '{(args.get('description') or '').strip()}'. Date: {(args.get('date') or '')}."
+        )
+
+    if tool_name == 'email_invoice':
+        return (
+            f"Voy a enviar por correo la factura '{(args.get('number_or_id') or '').strip()}' a {(args.get('to_email') or '').strip()}. "
+            f"Mensaje: '{(args.get('message') or '').strip()}'."
+            if is_es else
+            f"I will email invoice '{(args.get('number_or_id') or '').strip()}' to {(args.get('to_email') or '').strip()}. "
+            f"Message: '{(args.get('message') or '').strip()}'."
+        )
+
+    if tool_name == 'email_quote':
+        return (
+            f"Voy a enviar por correo la cotización '{(args.get('number_or_id') or '').strip()}' a {(args.get('to_email') or '').strip()}. "
+            f"Mensaje: '{(args.get('message') or '').strip()}'."
+            if is_es else
+            f"I will email quote '{(args.get('number_or_id') or '').strip()}' to {(args.get('to_email') or '').strip()}. "
+            f"Message: '{(args.get('message') or '').strip()}'."
+        )
+
+    if tool_name == 'email_purchase_order':
+        return (
+            f"Voy a enviar por correo la orden de compra '{(args.get('number_or_id') or '').strip()}' a {(args.get('to_email') or '').strip()}. "
+            f"Mensaje: '{(args.get('message') or '').strip()}'."
+            if is_es else
+            f"I will email purchase order '{(args.get('number_or_id') or '').strip()}' to {(args.get('to_email') or '').strip()}. "
+            f"Message: '{(args.get('message') or '').strip()}'."
+        )
+
+    if tool_name == 'email_library_document':
+        return (
+            f"Voy a enviar por correo el documento ID {(args.get('document_id') or '')} a {(args.get('to_email') or '').strip()}. "
+            f"Mensaje: '{(args.get('message') or '').strip()}'."
+            if is_es else
+            f"I will email document ID {(args.get('document_id') or '')} to {(args.get('to_email') or '').strip()}. "
+            f"Message: '{(args.get('message') or '').strip()}'."
+        )
+
+    if tool_name == 'delete_quote':
+        return (
+            f"Voy a borrar la cotización '{(args.get('number_or_id') or '').strip()}'."
+            if is_es else
+            f"I will delete quote '{(args.get('number_or_id') or '').strip()}'."
+        )
+
+    if tool_name == 'convert_quote_to_invoice':
+        return (
+            f"Voy a convertir la cotización '{(args.get('number_or_id') or '').strip()}' en factura."
+            if is_es else
+            f"I will convert quote '{(args.get('number_or_id') or '').strip()}' to an invoice."
+        )
+
+    if tool_name == 'record_payment':
+        return (
+            f"Voy a registrar un pago de '{(args.get('customer_name') or '').strip()}' por {(args.get('amount') or '')}."
+            if is_es else
+            f"I will record a payment for '{(args.get('customer_name') or '').strip()}' for {(args.get('amount') or '')}."
+        )
+
+    if tool_name == 'create_meeting':
+        return (
+            f"Voy a crear una reunión: '{(args.get('title') or '').strip()}'. Inicio: {(args.get('start_at') or '').strip()}. Fin: {(args.get('end_at') or '').strip()}"
+            if is_es else
+            f"I will create a meeting: '{(args.get('title') or '').strip()}'. Start: {(args.get('start_at') or '').strip()}. End: {(args.get('end_at') or '').strip()}"
+        )
+
+    if tool_name == 'create_customer':
+        return (
+            f"Voy a crear un cliente: '{(args.get('name') or '').strip()}' (email: {(args.get('email') or '').strip()})."
+            if is_es else
+            f"I will create a customer: '{(args.get('name') or '').strip()}' (email: {(args.get('email') or '').strip()})."
+        )
+
+    if tool_name == 'create_quote':
+        return (
+            f"Voy a crear una cotización para '{(args.get('customer_name') or '').strip()}' por {(args.get('amount') or '')}."
+            if is_es else
+            f"I will create a quote for '{(args.get('customer_name') or '').strip()}' for {(args.get('amount') or '')}."
+        )
+
+    return (
+        'Voy a realizar esta acción.' if is_es else 'I will perform this action.'
+    )
 
 
 def _normalize_name(value: str) -> str:
@@ -126,64 +283,58 @@ def _find_vendor_by_name(name: str) -> Optional[Vendor]:
     return None
 
 
+def _digits_only(value: str) -> str:
+    raw = (value or '').strip()
+    digits = ''.join([c for c in raw if c.isdigit()])
+    return digits
+
+
 def _next_invoice_number() -> str:
     last = Invoice.query.order_by(Invoice.id.desc()).first()
     if not last or not last.number:
-        return 'INV-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('INV-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"INV-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"INV-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 def _next_quote_number() -> str:
     last = Quote.query.order_by(Quote.id.desc()).first()
     if not last or not last.number:
-        return 'Q-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('Q-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"Q-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"Q-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 def _next_bill_number() -> str:
     last = Bill.query.order_by(Bill.id.desc()).first()
     if not last or not last.number:
-        return 'BILL-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('BILL-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"BILL-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"BILL-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 def _next_po_number() -> str:
     last = PurchaseOrder.query.order_by(PurchaseOrder.id.desc()).first()
     if not last or not last.number:
-        return 'PO-000001'
+        return '000001'
     try:
-        raw = (last.number or '').strip().upper()
-        if raw.startswith('PO-'):
-            n = int(raw.split('-', 1)[1])
-        else:
-            n = int(raw)
-        return f"PO-{n + 1:06d}"
+        digits = _digits_only(last.number)
+        n = int(digits)
+        return f"{n + 1:06d}"
     except Exception:
-        return f"PO-{(last.id + 1):06d}"
+        return f"{(last.id + 1):06d}"
 
 
 def _find_purchase_order_by_number_or_id(number_or_id: str) -> Optional[PurchaseOrder]:
@@ -1738,6 +1889,56 @@ def _openai_request(payload: Dict[str, Any]) -> Dict[str, Any]:
 def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
     model = (current_app.config.get('OPENAI_MODEL') or 'gpt-4o-mini').strip()
 
+    pending = session.get(_pending_key())
+    if pending:
+        if _is_affirmative(text):
+            session.pop(_pending_key(), None)
+            name = (pending.get('name') or '').strip()
+            args = pending.get('args') or {}
+            try:
+                if name == 'create_meeting':
+                    return _tool_create_meeting(args, user, lang)
+                if name == 'create_customer':
+                    return _tool_create_customer(args, lang)
+                if name == 'create_invoice':
+                    return _tool_create_invoice(args, lang)
+                if name == 'create_bill':
+                    return _tool_create_bill(args, lang)
+                if name == 'create_quote':
+                    return _tool_create_quote(args, lang)
+                if name == 'create_purchase_order':
+                    return _tool_create_purchase_order(args, lang)
+                if name == 'record_payment':
+                    return _tool_record_payment(args, lang)
+                if name == 'email_invoice':
+                    return _tool_email_invoice(args, user, lang)
+                if name == 'email_quote':
+                    return _tool_email_quote(args, user, lang)
+                if name == 'email_purchase_order':
+                    return _tool_email_purchase_order(args, user, lang)
+                if name == 'email_library_document':
+                    return _tool_email_library_document(args, user, lang)
+                if name == 'delete_quote':
+                    return _tool_delete_quote(args, lang)
+                if name == 'convert_quote_to_invoice':
+                    return _tool_convert_quote_to_invoice(args, lang)
+            except Exception:
+                current_app.logger.exception('Failed to execute confirmed pending action')
+                raise
+            return {'speak': 'Acción no soportada.' if _is_es(lang) else 'Unsupported action.'}
+
+        if _is_negative(text):
+            session.pop(_pending_key(), None)
+            return {'speak': 'Cancelado.' if _is_es(lang) else 'Canceled.'}
+
+        return {
+            'speak': (
+                'Dime "sí" para confirmar o "no" para cancelar.'
+                if _is_es(lang)
+                else 'Say "yes" to confirm or "no" to cancel.'
+            )
+        }
+
     name_for_balance = None
     asked_lower = (text or '').lower()
     if any(k in asked_lower for k in ['balance', 'saldo']):
@@ -2233,6 +2434,12 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             args = json.loads(args_raw) if isinstance(args_raw, str) else (args_raw or {})
         except Exception:
             args = {}
+
+        if name in _confirm_required_tool_names():
+            session[_pending_key()] = {'name': name, 'args': args}
+            readback = _format_action_readback(name, args, lang)
+            tail = (' ¿Confirmas? (sí/no)' if _is_es(lang) else ' Do you confirm? (yes/no)')
+            return {'speak': readback + tail}
 
         if name == 'meetings_today':
             return _tool_meetings_today(lang)
