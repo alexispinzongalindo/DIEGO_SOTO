@@ -10,7 +10,14 @@ from datetime import datetime, timedelta
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-    return render_template('index.html', title='Home')
+    return render_template('landing.html', title='Home')
+
+
+@bp.route('/landing')
+def landing():
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return render_template('landing.html', title='Home')
 
 @bp.route('/dashboard')
 @login_required
