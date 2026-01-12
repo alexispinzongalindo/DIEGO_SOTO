@@ -13,7 +13,7 @@ from fpdf import FPDF
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Bill, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, PurchaseOrder, PurchaseOrderItem, Quote, QuoteItem, User, Vendor
+from app.models import Bill, BillItem, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, PurchaseOrder, PurchaseOrderItem, Quote, QuoteItem, User, Vendor
 from app.office.library_storage import get_document_abs_path
 
 
@@ -154,6 +154,36 @@ def _next_quote_number() -> str:
         return f"Q-{n + 1:06d}"
     except Exception:
         return f"Q-{(last.id + 1):06d}"
+
+
+def _next_bill_number() -> str:
+    last = Bill.query.order_by(Bill.id.desc()).first()
+    if not last or not last.number:
+        return 'BILL-000001'
+    try:
+        raw = (last.number or '').strip().upper()
+        if raw.startswith('BILL-'):
+            n = int(raw.split('-', 1)[1])
+        else:
+            n = int(raw)
+        return f"BILL-{n + 1:06d}"
+    except Exception:
+        return f"BILL-{(last.id + 1):06d}"
+
+
+def _next_po_number() -> str:
+    last = PurchaseOrder.query.order_by(PurchaseOrder.id.desc()).first()
+    if not last or not last.number:
+        return 'PO-000001'
+    try:
+        raw = (last.number or '').strip().upper()
+        if raw.startswith('PO-'):
+            n = int(raw.split('-', 1)[1])
+        else:
+            n = int(raw)
+        return f"PO-{n + 1:06d}"
+    except Exception:
+        return f"PO-{(last.id + 1):06d}"
 
 
 def _find_purchase_order_by_number_or_id(number_or_id: str) -> Optional[PurchaseOrder]:
@@ -392,18 +422,25 @@ def _tool_create_customer(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
     }
 
 
+def _format_questions(questions: list[str]) -> str:
+    return "\n".join([f"{idx}. {q}" for idx, q in enumerate(questions, start=1)])
+
+
 def _tool_create_invoice(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
     customer_name = (args.get('customer_name') or '').strip()
-    if not customer_name:
-        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
-
     amount = args.get('amount')
     try:
         amount_val = float(amount)
     except Exception:
         amount_val = 0.0
+
+    missing_questions = []
+    if not customer_name:
+        missing_questions.append('¿Cuál es el nombre del cliente?' if _is_es(lang) else 'What is the customer name?')
     if amount_val <= 0:
-        return {'speak': 'Falta el monto.' if _is_es(lang) else 'Missing amount.'}
+        missing_questions.append('¿Cuál es el monto?' if _is_es(lang) else 'What is the amount?')
+    if missing_questions:
+        return {'speak': _format_questions(missing_questions)}
 
     customer = _find_customer_by_name(customer_name)
     if not customer:
@@ -654,16 +691,19 @@ def _find_quote_by_number_or_id(number_or_id: str) -> Optional[Quote]:
 
 def _tool_create_quote(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
     customer_name = (args.get('customer_name') or '').strip()
-    if not customer_name:
-        return {'speak': 'Falta el nombre del cliente.' if _is_es(lang) else 'Missing customer name.'}
-
     amount = args.get('amount')
     try:
         amount_val = float(amount)
     except Exception:
         amount_val = 0.0
+
+    missing_questions = []
+    if not customer_name:
+        missing_questions.append('¿Cuál es el nombre del cliente?' if _is_es(lang) else 'What is the customer name?')
     if amount_val <= 0:
-        return {'speak': 'Falta el monto.' if _is_es(lang) else 'Missing amount.'}
+        missing_questions.append('¿Cuál es el monto?' if _is_es(lang) else 'What is the amount?')
+    if missing_questions:
+        return {'speak': _format_questions(missing_questions)}
 
     customer = _find_customer_by_name(customer_name)
     if not customer:
@@ -734,6 +774,197 @@ def _tool_create_quote(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
         speak = f"Quote created for {customer.name} for ${total:,.2f}."
 
     return {'speak': speak, 'redirect_url': url_for('ar.view_quote', id=quote.id)}
+
+
+def _tool_create_bill(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    vendor_name = (args.get('vendor_name') or '').strip()
+
+    amount = args.get('amount')
+    try:
+        amount_val = float(amount)
+    except Exception:
+        amount_val = 0.0
+
+    missing_questions = []
+    if not vendor_name:
+        missing_questions.append('¿Cuál es el nombre del proveedor?' if _is_es(lang) else 'What is the vendor name?')
+    if amount_val <= 0:
+        missing_questions.append('¿Cuál es el monto?' if _is_es(lang) else 'What is the amount?')
+    if missing_questions:
+        return {'speak': _format_questions(missing_questions)}
+
+    vendor = _find_vendor_by_name(vendor_name)
+    if not vendor:
+        return {
+            'speak': 'No encontré ese proveedor.' if _is_es(lang) else "I couldn't find that vendor.",
+            'redirect_url': url_for('ap.vendors'),
+        }
+
+    description = (args.get('description') or '').strip() or ('Servicio' if _is_es(lang) else 'Service')
+
+    bill_date_raw = (args.get('date') or '').strip()
+    bill_date = None
+    if bill_date_raw:
+        try:
+            bill_date = parser.parse(bill_date_raw).date()
+        except Exception:
+            bill_date = None
+    if bill_date is None:
+        bill_date = date.today()
+
+    due_date_raw = (args.get('due_date') or '').strip()
+    due_date = None
+    if due_date_raw:
+        try:
+            due_date = parser.parse(due_date_raw).date()
+        except Exception:
+            due_date = None
+
+    tax = args.get('tax')
+    try:
+        tax_val = float(tax) if tax is not None else 0.0
+    except Exception:
+        tax_val = 0.0
+    tax_val = max(0.0, tax_val)
+
+    subtotal = float(amount_val)
+    total = float(subtotal + tax_val)
+
+    bill = Bill(
+        number=_next_bill_number(),
+        date=bill_date,
+        due_date=due_date,
+        vendor_id=vendor.id,
+        subtotal=subtotal,
+        tax=tax_val,
+        total=total,
+        status='open',
+        terms=(args.get('terms') or '').strip() or None,
+        notes=(args.get('notes') or '').strip() or None,
+    )
+    db.session.add(bill)
+    db.session.flush()
+
+    db.session.add(
+        BillItem(
+            bill=bill,
+            product_id=None,
+            description=description,
+            quantity=1,
+            unit_price=subtotal,
+            amount=subtotal,
+        )
+    )
+    db.session.commit()
+
+    if _is_es(lang):
+        speak = f"Cuenta creada para {vendor.name} por ${total:,.2f}."
+    else:
+        speak = f"Bill created for {vendor.name} for ${total:,.2f}."
+
+    return {'speak': speak, 'redirect_url': url_for('ap.view_bill', id=bill.id)}
+
+
+def _tool_create_purchase_order(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
+    po_type = (args.get('po_type') or '').strip().lower()
+    if po_type not in ('vendor', 'customer'):
+        po_type = ''
+
+    vendor_name = (args.get('vendor_name') or '').strip()
+    customer_name = (args.get('customer_name') or '').strip()
+
+    amount = args.get('amount')
+    try:
+        amount_val = float(amount)
+    except Exception:
+        amount_val = 0.0
+
+    missing_questions = []
+    if not po_type:
+        missing_questions.append('¿Es para proveedor o cliente? (vendor/customer)' if _is_es(lang) else 'Is this for a vendor or a customer? (vendor/customer)')
+    if po_type == 'vendor' and not vendor_name:
+        missing_questions.append('¿Cuál es el nombre del proveedor?' if _is_es(lang) else 'What is the vendor name?')
+    if po_type == 'customer' and not customer_name:
+        missing_questions.append('¿Cuál es el nombre del cliente?' if _is_es(lang) else 'What is the customer name?')
+    if amount_val <= 0:
+        missing_questions.append('¿Cuál es el monto?' if _is_es(lang) else 'What is the amount?')
+    if missing_questions:
+        return {'speak': _format_questions(missing_questions)}
+
+    vendor_id = None
+    customer_id = None
+    if po_type == 'vendor':
+        vendor = _find_vendor_by_name(vendor_name)
+        if not vendor:
+            return {
+                'speak': 'No encontré ese proveedor.' if _is_es(lang) else "I couldn't find that vendor.",
+                'redirect_url': url_for('ap.vendors'),
+            }
+        vendor_id = vendor.id
+    else:
+        customer = _find_customer_by_name(customer_name)
+        if not customer:
+            return {
+                'speak': 'No encontré ese cliente.' if _is_es(lang) else "I couldn't find that customer.",
+                'redirect_url': url_for('ar.customers'),
+            }
+        customer_id = customer.id
+
+    description = (args.get('description') or '').strip() or ('Servicio' if _is_es(lang) else 'Service')
+
+    po_date_raw = (args.get('date') or '').strip()
+    po_date = None
+    if po_date_raw:
+        try:
+            po_date = parser.parse(po_date_raw).date()
+        except Exception:
+            po_date = None
+    if po_date is None:
+        po_date = date.today()
+
+    tax = args.get('tax')
+    try:
+        tax_val = float(tax) if tax is not None else 0.0
+    except Exception:
+        tax_val = 0.0
+    tax_val = max(0.0, tax_val)
+
+    subtotal = float(amount_val)
+    total = float(subtotal + tax_val)
+
+    po = PurchaseOrder(
+        number=_next_po_number(),
+        po_type=po_type,
+        date=po_date,
+        vendor_id=vendor_id,
+        customer_id=customer_id,
+        subtotal=subtotal,
+        tax=tax_val,
+        total=total,
+        status=(args.get('status') or '').strip() or 'draft',
+        terms=(args.get('terms') or '').strip() or None,
+        notes=(args.get('notes') or '').strip() or None,
+    )
+    db.session.add(po)
+    db.session.flush()
+
+    db.session.add(
+        PurchaseOrderItem(
+            purchase_order=po,
+            description=description,
+            quantity=1,
+            unit_price=subtotal,
+            amount=subtotal,
+        )
+    )
+    db.session.commit()
+
+    if _is_es(lang):
+        speak = f"Orden de compra creada {po.number} por ${total:,.2f}."
+    else:
+        speak = f"Purchase order created {po.number} for ${total:,.2f}."
+
+    return {'speak': speak, 'redirect_url': url_for('po.view_purchase_order', id=po.id)}
 
 
 def _tool_edit_quote(args: Dict[str, Any], lang: str) -> Dict[str, Any]:
@@ -1642,6 +1873,28 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
         {
             'type': 'function',
             'function': {
+                'name': 'create_bill',
+                'description': 'Create a bill for a vendor (simple single-line bill).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'vendor_name': {'type': 'string'},
+                        'amount': {'type': 'number'},
+                        'description': {'type': 'string'},
+                        'date': {'type': 'string'},
+                        'due_date': {'type': 'string'},
+                        'tax': {'type': 'number'},
+                        'terms': {'type': 'string'},
+                        'notes': {'type': 'string'},
+                    },
+                    'required': ['vendor_name', 'amount'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
                 'name': 'email_invoice',
                 'description': 'Email an invoice PDF to a recipient.',
                 'parameters': {
@@ -1775,6 +2028,30 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
                         'notes': {'type': 'string'},
                     },
                     'required': ['customer_name', 'amount'],
+                    'additionalProperties': False,
+                },
+            },
+        },
+        {
+            'type': 'function',
+            'function': {
+                'name': 'create_purchase_order',
+                'description': 'Create a purchase order (simple single-line PO).',
+                'parameters': {
+                    'type': 'object',
+                    'properties': {
+                        'po_type': {'type': 'string', 'description': 'vendor or customer'},
+                        'vendor_name': {'type': 'string'},
+                        'customer_name': {'type': 'string'},
+                        'amount': {'type': 'number'},
+                        'description': {'type': 'string'},
+                        'date': {'type': 'string'},
+                        'tax': {'type': 'number'},
+                        'status': {'type': 'string'},
+                        'terms': {'type': 'string'},
+                        'notes': {'type': 'string'},
+                    },
+                    'required': ['po_type', 'amount'],
                     'additionalProperties': False,
                 },
             },
@@ -1973,6 +2250,8 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_create_customer(args, lang)
         if name == 'create_invoice':
             return _tool_create_invoice(args, lang)
+        if name == 'create_bill':
+            return _tool_create_bill(args, lang)
         if name == 'email_invoice':
             return _tool_email_invoice(args, user, lang)
         if name == 'email_purchase_order':
@@ -1989,6 +2268,8 @@ def run_assistant(text: str, lang: str, user: User) -> Dict[str, Any]:
             return _tool_list_quotes(args, lang)
         if name == 'create_quote':
             return _tool_create_quote(args, lang)
+        if name == 'create_purchase_order':
+            return _tool_create_purchase_order(args, lang)
         if name == 'edit_quote':
             return _tool_edit_quote(args, lang)
         if name == 'delete_quote':
