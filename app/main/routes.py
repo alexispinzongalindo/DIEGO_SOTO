@@ -4,11 +4,18 @@ from app import db
 from app.main import bp
 from app.models import AppSetting, Invoice, Quote, Bill, Customer, Vendor, Payment, PurchaseOrder, VendorPayment
 from datetime import datetime, timedelta
+from sqlalchemy import inspect
 
 
 def _get_app_setting(key: str) -> str:
-    row = AppSetting.query.filter_by(key=key).first()
-    return (row.value or '').strip() if row else ''
+    try:
+        if not inspect(db.engine).has_table('app_setting'):
+            return ''
+        row = AppSetting.query.filter_by(key=key).first()
+        return (row.value or '').strip() if row else ''
+    except Exception:
+        db.session.rollback()
+        return ''
 
 
 def _is_marketing_landing_enabled() -> bool:

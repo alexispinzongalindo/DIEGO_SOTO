@@ -11,6 +11,7 @@ from app.office import bp
 from app.office.forms import MeetingForm, ProjectForm, LibraryDocumentForm, EmailLibraryDocumentForm, DeleteForm, AdminSettingsForm
 from app.office.ai_assistant import run_assistant
 from app.office.library_storage import save_uploaded_file, get_document_abs_path, delete_document_file
+from sqlalchemy import inspect
 
 
 @bp.app_context_processor
@@ -437,18 +438,29 @@ def instructions():
 
 
 def _get_app_setting(key: str) -> str:
-    row = AppSetting.query.filter_by(key=key).first()
-    return (row.value or '').strip() if row else ''
+    try:
+        if not inspect(db.engine).has_table('app_setting'):
+            return ''
+        row = AppSetting.query.filter_by(key=key).first()
+        return (row.value or '').strip() if row else ''
+    except Exception:
+        db.session.rollback()
+        return ''
 
 
 def _set_app_setting(key: str, value: str) -> None:
-    row = AppSetting.query.filter_by(key=key).first()
-    if row is None:
-        row = AppSetting(key=key)
-        db.session.add(row)
-    row.value = (value or '').strip()
-    row.updated_at = datetime.utcnow()
-    db.session.commit()
+    try:
+        if not inspect(db.engine).has_table('app_setting'):
+            return
+        row = AppSetting.query.filter_by(key=key).first()
+        if row is None:
+            row = AppSetting(key=key)
+            db.session.add(row)
+        row.value = (value or '').strip()
+        row.updated_at = datetime.utcnow()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 @bp.route('/settings', methods=['GET', 'POST'])
