@@ -120,6 +120,32 @@
             </div>
         </div>
     </div>
+
+    <div class="col-md-6">
+        <div class="card bg-secondary text-white h-100">
+            <div class="card-header bg-secondary bg-opacity-25 border-0 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Pending Quotes & Due Dates</h5>
+                <a href="{{ url_for('ar.quotes') }}" class="btn btn-sm btn-outline-light">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for quote in quotes_due_list %}
+                    <a href="{{ url_for('ar.view_quote', id=quote.id) }}" class="list-group-item list-group-item-action bg-secondary text-white">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ quote.customer.name if quote.customer else '' }}</h6>
+                            <small>Due {{ quote.due_date.strftime('%Y-%m-%d') if quote.due_date else '' }}</small>
+                        </div>
+                        <small class="opacity-75">Quote #{{ quote.number }}</small>
+                    </a>
+                    {% else %}
+                    <div class="text-center p-4">
+                        <p class="mb-0">No pending quotes with due dates</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row">

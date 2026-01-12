@@ -62,12 +62,42 @@ def dashboard():
     recent_purchase_orders = PurchaseOrder.query.order_by(PurchaseOrder.date.desc()).limit(5).all()
 
     try:
-        pending_quotes = Quote.query.filter(Quote.status.in_(['draft', 'sent']))\
-            .order_by(Quote.due_date.asc().nullslast(), Quote.date.desc())\
-            .limit(8).all()
+        pending_quotes = (
+            Quote.query.filter(Quote.status.in_(['draft', 'sent']))
+            .order_by(
+                db.case((Quote.due_date.is_(None), 1), else_=0),
+                Quote.due_date.asc(),
+                Quote.date.desc(),
+            )
+            .limit(8)
+            .all()
+        )
     except Exception:
         db.session.rollback()
         pending_quotes = []
+
+    try:
+        quotes_due_count = (
+            Quote.query.filter(Quote.status.in_(['draft', 'sent']))
+            .filter(Quote.due_date.isnot(None))
+            .filter(Quote.due_date <= today)
+            .count()
+        )
+    except Exception:
+        db.session.rollback()
+        quotes_due_count = 0
+
+    try:
+        quotes_due_list = (
+            Quote.query.filter(Quote.status.in_(['draft', 'sent']))
+            .filter(Quote.due_date.isnot(None))
+            .order_by(Quote.due_date.asc(), Quote.date.desc())
+            .limit(6)
+            .all()
+        )
+    except Exception:
+        db.session.rollback()
+        quotes_due_list = []
 
     purchase_order_count = PurchaseOrder.query.count()
     draft_po_count = PurchaseOrder.query.filter_by(status='draft').count()
@@ -105,6 +135,8 @@ def dashboard():
                          vendor_count=vendor_count,
                          purchase_order_count=purchase_order_count,
                          draft_po_count=draft_po_count,
+                         quotes_due_count=quotes_due_count,
+                         quotes_due_list=quotes_due_list,
                          total_receivables=total_receivables,
                          total_payables=total_payables,
                          thirty_day_revenue=thirty_day_revenue,
