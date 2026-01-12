@@ -36,6 +36,13 @@ class User(UserMixin, db.Model):
             return None
         return User.query.get(user_id)
 
+
+class AppSetting(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(80), unique=True, index=True)
+    value = db.Column(db.String(200))
+    updated_at = db.Column(db.DateTime)
+
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), index=True)

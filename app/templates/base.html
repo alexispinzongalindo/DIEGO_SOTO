@@ -109,6 +109,9 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="#"><i class="bi bi-person"></i> Profile</a></li>
+                                {% if current_user.is_admin %}
+                                    <li><a class="dropdown-item" href="{{ url_for('office.settings') }}"><i class="bi bi-sliders"></i> Settings</a></li>
+                                {% endif %}
                                 <li><a class="dropdown-item" href="{{ url_for('office.instructions') }}"><i class="bi bi-gear"></i> Instructions</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a></li>

@@ -6,9 +6,9 @@ from flask_login import login_required, current_user
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Meeting, Notification, Invoice, User, Project, LibraryDocument
+from app.models import AppSetting, Meeting, Notification, Invoice, User, Project, LibraryDocument
 from app.office import bp
-from app.office.forms import MeetingForm, ProjectForm, LibraryDocumentForm, EmailLibraryDocumentForm, DeleteForm
+from app.office.forms import MeetingForm, ProjectForm, LibraryDocumentForm, EmailLibraryDocumentForm, DeleteForm, AdminSettingsForm
 from app.office.ai_assistant import run_assistant
 from app.office.library_storage import save_uploaded_file, get_document_abs_path, delete_document_file
 
@@ -434,6 +434,44 @@ def notifications():
 @login_required
 def instructions():
     return render_template('office/instructions.html', title='Instructions')
+
+
+def _get_app_setting(key: str) -> str:
+    row = AppSetting.query.filter_by(key=key).first()
+    return (row.value or '').strip() if row else ''
+
+
+def _set_app_setting(key: str, value: str) -> None:
+    row = AppSetting.query.filter_by(key=key).first()
+    if row is None:
+        row = AppSetting(key=key)
+        db.session.add(row)
+    row.value = (value or '').strip()
+    row.updated_at = datetime.utcnow()
+    db.session.commit()
+
+
+@bp.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings():
+    if not getattr(current_user, 'is_admin', False):
+        flash('Admin access required.', 'warning')
+        return redirect(url_for('office.meetings'))
+
+    form = AdminSettingsForm()
+
+    if request.method == 'GET':
+        current_val = _get_app_setting('show_marketing_landing').lower()
+        enabled = current_val in ('1', 'true', 't', 'yes', 'y', 'on')
+        form.show_marketing_landing.data = 'on' if enabled else 'off'
+
+    if form.validate_on_submit():
+        sel = (form.show_marketing_landing.data or 'off').strip().lower()
+        _set_app_setting('show_marketing_landing', 'on' if sel == 'on' else 'off')
+        flash('Settings saved.', 'success')
+        return redirect(url_for('office.settings'))
+
+    return render_template('office/settings.html', title='Settings', form=form)
 
 
 @bp.route('/notification/<int:id>/read', methods=['POST'])

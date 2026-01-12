@@ -36,3 +36,12 @@ class EmailLibraryDocumentForm(FlaskForm):
 
 class DeleteForm(FlaskForm):
     submit = SubmitField('Delete')
+
+
+class AdminSettingsForm(FlaskForm):
+    show_marketing_landing = SelectField(
+        'Public Marketing Landing Page',
+        choices=[('off', 'Hide'), ('on', 'Show')],
+        validators=[DataRequired()],
+    )
+    submit = SubmitField('Save Settings')

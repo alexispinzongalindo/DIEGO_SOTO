@@ -2,22 +2,36 @@ from flask import render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from app import db
 from app.main import bp
-from app.models import Invoice, Quote, Bill, Customer, Vendor, Payment, PurchaseOrder, VendorPayment
+from app.models import AppSetting, Invoice, Quote, Bill, Customer, Vendor, Payment, PurchaseOrder, VendorPayment
 from datetime import datetime, timedelta
+
+
+def _get_app_setting(key: str) -> str:
+    row = AppSetting.query.filter_by(key=key).first()
+    return (row.value or '').strip() if row else ''
+
+
+def _is_marketing_landing_enabled() -> bool:
+    val = _get_app_setting('show_marketing_landing').lower()
+    return val in ('1', 'true', 't', 'yes', 'y', 'on')
 
 @bp.route('/')
 @bp.route('/index')
 def index():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-    return render_template('landing.html', title='Home')
+    if _is_marketing_landing_enabled():
+        return render_template('landing.html', title='Home')
+    return render_template('index.html', title='Home')
 
 
 @bp.route('/landing')
 def landing():
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
-    return render_template('landing.html', title='Home')
+    if _is_marketing_landing_enabled():
+        return render_template('landing.html', title='Home')
+    return render_template('index.html', title='Home')
 
 @bp.route('/dashboard')
 @login_required
