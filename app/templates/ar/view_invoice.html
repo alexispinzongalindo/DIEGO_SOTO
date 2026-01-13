@@ -119,27 +119,6 @@
                 <div class="mb-2"><span class="text-muted">Total:</span> ${{ "%0.2f"|format(invoice.total or 0) }}</div>
             </div>
         </div>
-
-        <div class="row mt-2">
-            <div class="col-md-6">
-                <div class="mb-2"><span class="text-muted">Gross Profit:</span>
-                    {% if gross_profit is not none %}
-                        ${{ "%0.2f"|format(gross_profit) }}
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="mb-2"><span class="text-muted">Margin %:</span>
-                    {% if margin_pct is not none %}
-                        {{ "%0.1f"|format(margin_pct) }}%
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
         {% if invoice.notes %}
         <div class="mt-3">
             <div class="text-muted small">Notes</div>
