@@ -59,6 +59,33 @@ def _company_header_settings() -> dict:
         return {}
 
 
+def _resolve_logo_abs_path(logo_path: str) -> str:
+    raw = (logo_path or '').strip()
+    candidates: list[str] = []
+
+    if raw:
+        candidates.append(raw)
+        candidates.append(raw.lstrip('/'))
+    candidates.append('static/img/logo.png')
+    candidates.append('static/img/logo.jpg')
+    candidates.append('static/img/logo.jpeg')
+    candidates.append('static/logo.png')
+    candidates.append('static/logo.jpg')
+    candidates.append('static/logo.jpeg')
+
+    for c in candidates:
+        if not c:
+            continue
+        if os.path.isabs(c):
+            if os.path.exists(c):
+                return c
+            continue
+        abs_path = os.path.join(current_app.root_path, c)
+        if os.path.exists(abs_path):
+            return abs_path
+    return ''
+
+
 def _render_company_header_pdf(pdf: FPDF) -> None:
     header = _company_header_settings()
     logo_path = (header.get('logo_path') or '').strip()
@@ -69,13 +96,12 @@ def _render_company_header_pdf(pdf: FPDF) -> None:
     email = (header.get('email') or '').strip()
 
     start_y = 10
-    if logo_path:
-        abs_logo = os.path.join(current_app.root_path, logo_path)
-        if os.path.exists(abs_logo):
-            try:
-                pdf.image(abs_logo, x=10, y=start_y, w=28)
-            except Exception:
-                pass
+    abs_logo = _resolve_logo_abs_path(logo_path)
+    if abs_logo:
+        try:
+            pdf.image(abs_logo, x=10, y=start_y, w=28)
+        except Exception:
+            pass
 
     x_text = 42
     y = start_y
@@ -175,13 +201,12 @@ def _build_quote_pdf(quote, items):
     pdf.rect(10, 10, 70, 30)
     pdf.rect(80, 10, 120, 30)
 
-    if logo_path:
-        abs_logo = os.path.join(current_app.root_path, logo_path)
-        if os.path.exists(abs_logo):
-            try:
-                pdf.image(abs_logo, x=12, y=12, w=30)
-            except Exception:
-                pass
+    abs_logo = _resolve_logo_abs_path(logo_path)
+    if abs_logo:
+        try:
+            pdf.image(abs_logo, x=12, y=12, w=30)
+        except Exception:
+            pass
 
     pdf.set_xy(12, 30)
     pdf.set_font('Helvetica', '', 8)
@@ -351,13 +376,12 @@ def _build_invoice_pdf(invoice, items):
     pdf.rect(10, 10, 70, 30)
     pdf.rect(80, 10, 120, 30)
 
-    if logo_path:
-        abs_logo = os.path.join(current_app.root_path, logo_path)
-        if os.path.exists(abs_logo):
-            try:
-                pdf.image(abs_logo, x=12, y=12, w=30)
-            except Exception:
-                pass
+    abs_logo = _resolve_logo_abs_path(logo_path)
+    if abs_logo:
+        try:
+            pdf.image(abs_logo, x=12, y=12, w=30)
+        except Exception:
+            pass
 
     pdf.set_xy(12, 30)
     pdf.set_font('Helvetica', '', 8)
