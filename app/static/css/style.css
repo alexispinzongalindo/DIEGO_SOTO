@@ -3,7 +3,8 @@ body { background-color: #f8f9fa; }
 .footer { border-top: 1px solid #e9ecef; }
 
 .app-navbar {
-  min-height: 56px;
+  min-height: 76px;
+  background: linear-gradient(180deg, #052654 0%, #0a3b8f 100%) !important;
 }
 
 .app-navbar .navbar-brand {
@@ -12,11 +13,20 @@ body { background-color: #f8f9fa; }
 }
 
 .app-navbar .navbar-logo {
-  height: 44px;
+  height: 72px;
   width: auto;
   object-fit: contain;
   mix-blend-mode: multiply;
-  filter: contrast(1.05) saturate(1.05);
+  filter: contrast(1.1) saturate(1.15)
+    drop-shadow(0 0 10px rgba(255, 255, 255, 0.65))
+    drop-shadow(0 0 22px rgba(0, 180, 255, 0.45));
+}
+
+@media (min-width: 992px) {
+  .app-navbar .main-nav {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
 }
 
 .app-navbar .navbar-brand,
