@@ -13,7 +13,15 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary app-navbar">
         <div class="container-fluid">
             <a class="navbar-brand" href="{{ url_for('main.index') }}">
-                <i class="bi bi-building"></i> Diego Soto & Associates
+                {% set lp = (company_header.logo_path if company_header and company_header.logo_path else 'static/img/logo.jpeg') %}
+                {% if lp.startswith('static/') %}
+                    {% set logo_url = url_for('static', filename=lp[7:]) %}
+                {% elif lp.startswith('/static/') %}
+                    {% set logo_url = lp %}
+                {% else %}
+                    {% set logo_url = '/' + lp.lstrip('/') %}
+                {% endif %}
+                <img src="{{ logo_url }}" alt="Logo" height="28" class="d-inline-block align-text-top">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
