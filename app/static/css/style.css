@@ -4,7 +4,7 @@ body { background-color: #f8f9fa; }
 
 .app-navbar {
   min-height: 76px;
-  background: linear-gradient(180deg, #052654 0%, #0a3b8f 100%) !important;
+  background: linear-gradient(180deg, #0b3ea8 0%, #1565d8 100%) !important;
 }
 
 .app-navbar .navbar-brand {
@@ -13,7 +13,7 @@ body { background-color: #f8f9fa; }
 }
 
 .app-navbar .navbar-logo {
-  height: 72px;
+  height: 84px;
   width: auto;
   object-fit: contain;
   mix-blend-mode: multiply;
