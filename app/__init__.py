@@ -1,4 +1,5 @@
 from flask import Flask
+import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
@@ -45,20 +46,45 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_company_header():
         try:
+            defaults = {
+                'company_name': (os.environ.get('COMPANY_NAME') or '').strip() or 'Diego Soto & Associates',
+                'company_address': (os.environ.get('COMPANY_ADDRESS') or '').strip(),
+                'company_phone': (os.environ.get('COMPANY_PHONE') or '').strip(),
+                'company_fax': (os.environ.get('COMPANY_FAX') or '').strip(),
+                'company_email': (os.environ.get('COMPANY_EMAIL') or '').strip(),
+                'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
+            }
+
             if not inspect(db.engine).has_table('app_setting'):
-                return {'company_header': {}}
+                return {
+                    'company_header': {
+                        'name': defaults.get('company_name', ''),
+                        'address': defaults.get('company_address', ''),
+                        'phone': defaults.get('company_phone', ''),
+                        'fax': defaults.get('company_fax', ''),
+                        'email': defaults.get('company_email', ''),
+                        'logo_path': defaults.get('company_logo_path', ''),
+                    }
+                }
             from app.models import AppSetting
             keys = ['company_name', 'company_address', 'company_phone', 'company_fax', 'company_email', 'company_logo_path']
             rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
             vals = {r.key: (r.value or '').strip() for r in rows}
+
+            def _pick(key: str) -> str:
+                v = (vals.get(key) or '').strip()
+                if v:
+                    return v
+                return (defaults.get(key) or '').strip()
+
             return {
                 'company_header': {
-                    'name': vals.get('company_name', ''),
-                    'address': vals.get('company_address', ''),
-                    'phone': vals.get('company_phone', ''),
-                    'fax': vals.get('company_fax', ''),
-                    'email': vals.get('company_email', ''),
-                    'logo_path': vals.get('company_logo_path', ''),
+                    'name': _pick('company_name'),
+                    'address': _pick('company_address'),
+                    'phone': _pick('company_phone'),
+                    'fax': _pick('company_fax'),
+                    'email': _pick('company_email'),
+                    'logo_path': _pick('company_logo_path'),
                 }
             }
         except Exception:
