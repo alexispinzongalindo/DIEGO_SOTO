@@ -947,6 +947,7 @@ def edit_invoice(id):
             item_rows.append({
                 'description': description,
                 'quantity': qty,
+                'unit': unit,
                 'unit_price': unit_price,
                 'amount': amount,
             })
