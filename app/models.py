@@ -48,6 +48,8 @@ class Customer(db.Model):
     name = db.Column(db.String(100), index=True)
     address = db.Column(db.String(200))
     phone = db.Column(db.String(20))
+    fax = db.Column(db.String(20))
+    alt_phone = db.Column(db.String(20))
     email = db.Column(db.String(120))
     tax_id = db.Column(db.String(30))
     credit_limit = db.Column(db.Numeric(10, 2), default=0.00)
@@ -85,12 +87,28 @@ class Invoice(db.Model):
     date = db.Column(db.Date, index=True, default=datetime.utcnow)
     due_date = db.Column(db.Date)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+
+    customer_po = db.Column(db.String(50))
+    rep = db.Column(db.String(50))
+    ship_date = db.Column(db.Date)
+    ship_via = db.Column(db.String(50))
+    fob = db.Column(db.String(50))
+    project = db.Column(db.String(100))
+
+    bill_to_name = db.Column(db.String(100))
+    bill_to_address = db.Column(db.String(200))
+    ship_to_name = db.Column(db.String(100))
+    ship_to_address = db.Column(db.String(200))
+
+    authorized_signature = db.Column(db.String(120))
+
     subtotal = db.Column(db.Numeric(10, 2))
     tax = db.Column(db.Numeric(10, 2))
     total = db.Column(db.Numeric(10, 2))
     status = db.Column(db.String(20), default='open')  # open, paid, overdue, partial
     terms = db.Column(db.String(50))
     notes = db.Column(db.Text)
+    side_notes = db.Column(db.Text)
     items = db.relationship('InvoiceItem', backref='invoice', lazy='dynamic')
     payments = db.relationship('Payment', backref='invoice', lazy='dynamic')
 
@@ -115,6 +133,7 @@ class InvoiceItem(db.Model):
     product = db.relationship('Product')
     description = db.Column(db.String(200))
     quantity = db.Column(db.Numeric(10, 2))
+    unit = db.Column(db.String(20))
     unit_price = db.Column(db.Numeric(10, 2))
     amount = db.Column(db.Numeric(10, 2))
 
@@ -126,12 +145,17 @@ class Quote(db.Model):
     due_date = db.Column(db.Date)
     valid_until = db.Column(db.Date)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    project = db.Column(db.String(100))
+    rep = db.Column(db.String(50))
+    customer_tel = db.Column(db.String(50))
+    customer_fax = db.Column(db.String(50))
     subtotal = db.Column(db.Numeric(10, 2))
     tax = db.Column(db.Numeric(10, 2))
     total = db.Column(db.Numeric(10, 2))
     status = db.Column(db.String(20), default='draft')  # draft, sent, accepted, rejected, invoiced
     terms = db.Column(db.String(50))
     notes = db.Column(db.Text)
+    printed_notes = db.Column(db.Text)
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'))
     invoice = db.relationship('Invoice')
     items = db.relationship('QuoteItem', backref='quote', lazy='dynamic')
@@ -144,6 +168,7 @@ class QuoteItem(db.Model):
     product = db.relationship('Product')
     description = db.Column(db.String(200))
     quantity = db.Column(db.Numeric(10, 2))
+    unit = db.Column(db.String(20))
     unit_price = db.Column(db.Numeric(10, 2))
     amount = db.Column(db.Numeric(10, 2))
 

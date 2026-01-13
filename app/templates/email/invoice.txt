@@ -1,3 +1,9 @@
+{% if company_header and (company_header.name or company_header.address or company_header.phone or company_header.email) -%}
+{{ company_header.name }}
+{{ company_header.address }}
+{{ company_header.phone }}{% if company_header.phone and company_header.email %} / {% endif %}{{ company_header.email }}
+
+{%- endif %}
 Invoice {{ invoice.number }}
 Customer: {{ invoice.customer.name if invoice.customer else '' }}
 Total: ${{ "%0.2f"|format(invoice.total or 0) }}

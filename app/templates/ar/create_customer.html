@@ -38,6 +38,23 @@
                             {% endfor %}
                         </div>
                         <div class="col-md-6 mb-3">
+                            {{ form.fax.label(class="form-label") }}
+                            {{ form.fax(class="form-control" + (' is-invalid' if form.fax.errors else '')) }}
+                            {% for error in form.fax.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.alt_phone.label(class="form-label") }}
+                            {{ form.alt_phone(class="form-control" + (' is-invalid' if form.alt_phone.errors else '')) }}
+                            {% for error in form.alt_phone.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
                             {{ form.tax_id.label(class="form-label") }}
                             {{ form.tax_id(class="form-control" + (' is-invalid' if form.tax_id.errors else '')) }}
                             {% for error in form.tax_id.errors %}

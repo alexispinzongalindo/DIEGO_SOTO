@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import unicodedata
 from datetime import date, datetime, timedelta
@@ -10,10 +11,11 @@ import requests
 from dateutil import parser
 from flask import current_app, url_for, session
 from fpdf import FPDF
+from sqlalchemy import inspect
 
 from app import db
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Bill, BillItem, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, PurchaseOrder, PurchaseOrderItem, Quote, QuoteItem, User, Vendor
+from app.models import AppSetting, Bill, BillItem, Customer, Invoice, InvoiceItem, LibraryDocument, Meeting, Notification, Payment, Project, PurchaseOrder, PurchaseOrderItem, Quote, QuoteItem, User, Vendor
 from app.office.library_storage import get_document_abs_path
 
 
@@ -668,6 +670,44 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
+
+    try:
+        if inspect(db.engine).has_table('app_setting'):
+            keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+            rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
+            vals = {r.key: (r.value or '').strip() for r in rows}
+            logo_path = (vals.get('company_logo_path') or '').strip()
+            if logo_path:
+                abs_logo = os.path.join(current_app.root_path, logo_path)
+                if os.path.exists(abs_logo):
+                    try:
+                        pdf.image(abs_logo, x=10, y=10, w=28)
+                    except Exception:
+                        pass
+
+            x_text = 42
+            y = 10
+            name = (vals.get('company_name') or '').strip()
+            if name:
+                pdf.set_xy(x_text, y)
+                pdf.set_font('Helvetica', 'B', 14)
+                pdf.cell(0, 6, name, ln=True)
+            pdf.set_font('Helvetica', '', 10)
+            addr = (vals.get('company_address') or '').strip()
+            if addr:
+                for line in [ln.strip() for ln in addr.splitlines() if ln.strip()]:
+                    pdf.set_x(x_text)
+                    pdf.cell(0, 5, line, ln=True)
+            phone = (vals.get('company_phone') or '').strip()
+            email = (vals.get('company_email') or '').strip()
+            if phone or email:
+                contact = ' / '.join([p for p in [phone, email] if p])
+                pdf.set_x(x_text)
+                pdf.cell(0, 5, contact, ln=True)
+            pdf.ln(2)
+    except Exception:
+        db.session.rollback()
+
     pdf.set_font('Helvetica', 'B', 16)
     pdf.cell(0, 10, 'Invoice', ln=True)
 
@@ -677,11 +717,16 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf.cell(0, 6, f"Due Date: {invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else ''}", ln=True)
     if invoice.customer:
         pdf.cell(0, 6, f"Customer: {invoice.customer.name}", ln=True)
+    if getattr(invoice, 'side_notes', None):
+        side_notes = (invoice.side_notes or '').strip()
+        if side_notes:
+            pdf.cell(0, 6, f"Side Notes: {side_notes}", ln=True)
     pdf.ln(4)
 
     pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(90, 8, 'Description', border=1)
-    pdf.cell(20, 8, 'Qty', border=1, align='R')
+    pdf.cell(75, 8, 'Description', border=1)
+    pdf.cell(18, 8, 'Qty', border=1, align='R')
+    pdf.cell(17, 8, 'Unit', border=1)
     pdf.cell(30, 8, 'Unit Price', border=1, align='R')
     pdf.cell(30, 8, 'Amount', border=1, align='R')
     pdf.ln(8)
@@ -690,10 +735,12 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     for item in items:
         desc = item.description or ''
         qty = float(item.quantity or 0)
+        unit = (getattr(item, 'unit', None) or '').strip()
         unit_price = float(item.unit_price or 0)
         amount = float(item.amount or 0)
-        pdf.cell(90, 8, (desc[:45] + '...') if len(desc) > 48 else desc, border=1)
-        pdf.cell(20, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(75, 8, (desc[:38] + '...') if len(desc) > 41 else desc, border=1)
+        pdf.cell(18, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(17, 8, unit[:10], border=1)
         pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
         pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
         pdf.ln(8)
@@ -710,6 +757,14 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf.set_font('Helvetica', 'B', 11)
     pdf.cell(140, 7, 'Total', align='R')
     pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+
+    printed = (getattr(quote, 'printed_notes', None) or '').strip()
+    if printed:
+        pdf.ln(6)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.cell(0, 6, 'Notes', ln=True)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.multi_cell(0, 4.5, printed)
 
     out = pdf.output(dest='S')
     if isinstance(out, str):
@@ -779,6 +834,44 @@ def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
+
+    try:
+        if inspect(db.engine).has_table('app_setting'):
+            keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+            rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
+            vals = {r.key: (r.value or '').strip() for r in rows}
+            logo_path = (vals.get('company_logo_path') or '').strip()
+            if logo_path:
+                abs_logo = os.path.join(current_app.root_path, logo_path)
+                if os.path.exists(abs_logo):
+                    try:
+                        pdf.image(abs_logo, x=10, y=10, w=28)
+                    except Exception:
+                        pass
+
+            x_text = 42
+            y = 10
+            name = (vals.get('company_name') or '').strip()
+            if name:
+                pdf.set_xy(x_text, y)
+                pdf.set_font('Helvetica', 'B', 14)
+                pdf.cell(0, 6, name, ln=True)
+            pdf.set_font('Helvetica', '', 10)
+            addr = (vals.get('company_address') or '').strip()
+            if addr:
+                for line in [ln.strip() for ln in addr.splitlines() if ln.strip()]:
+                    pdf.set_x(x_text)
+                    pdf.cell(0, 5, line, ln=True)
+            phone = (vals.get('company_phone') or '').strip()
+            email = (vals.get('company_email') or '').strip()
+            if phone or email:
+                contact = ' / '.join([p for p in [phone, email] if p])
+                pdf.set_x(x_text)
+                pdf.cell(0, 5, contact, ln=True)
+            pdf.ln(2)
+    except Exception:
+        db.session.rollback()
+
     pdf.set_font('Helvetica', 'B', 16)
     pdf.cell(0, 10, 'Quote', ln=True)
 
@@ -788,11 +881,24 @@ def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
     pdf.cell(0, 6, f"Valid Until: {quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else ''}", ln=True)
     if quote.customer:
         pdf.cell(0, 6, f"Customer: {quote.customer.name}", ln=True)
+    if getattr(quote, 'project', None):
+        if (quote.project or '').strip():
+            pdf.cell(0, 6, f"Project: {(quote.project or '').strip()}", ln=True)
+    if getattr(quote, 'rep', None):
+        if (quote.rep or '').strip():
+            pdf.cell(0, 6, f"Rep: {(quote.rep or '').strip()}", ln=True)
+    if getattr(quote, 'customer_tel', None):
+        if (quote.customer_tel or '').strip():
+            pdf.cell(0, 6, f"Cust. Tel.: {(quote.customer_tel or '').strip()}", ln=True)
+    if getattr(quote, 'customer_fax', None):
+        if (quote.customer_fax or '').strip():
+            pdf.cell(0, 6, f"Cust. Fax: {(quote.customer_fax or '').strip()}", ln=True)
     pdf.ln(4)
 
     pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(90, 8, 'Description', border=1)
-    pdf.cell(20, 8, 'Qty', border=1, align='R')
+    pdf.cell(75, 8, 'Description', border=1)
+    pdf.cell(18, 8, 'Qty', border=1, align='R')
+    pdf.cell(17, 8, 'Unit', border=1)
     pdf.cell(30, 8, 'Unit Price', border=1, align='R')
     pdf.cell(30, 8, 'Amount', border=1, align='R')
     pdf.ln(8)
@@ -801,10 +907,12 @@ def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
     for item in items:
         desc = item.description or ''
         qty = float(item.quantity or 0)
+        unit = (getattr(item, 'unit', None) or '').strip()
         unit_price = float(item.unit_price or 0)
         amount = float(item.amount or 0)
-        pdf.cell(90, 8, (desc[:45] + '...') if len(desc) > 48 else desc, border=1)
-        pdf.cell(20, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(75, 8, (desc[:38] + '...') if len(desc) > 41 else desc, border=1)
+        pdf.cell(18, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(17, 8, unit[:10], border=1)
         pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
         pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
         pdf.ln(8)
@@ -1284,6 +1392,8 @@ def _tool_convert_quote_to_invoice(args: Dict[str, Any], lang: str) -> Dict[str,
         date=date.today(),
         due_date=None,
         customer_id=quote.customer_id,
+        project=(getattr(quote, 'project', None) or '').strip() or None,
+        rep=(getattr(quote, 'rep', None) or '').strip() or None,
         subtotal=quote.subtotal,
         tax=quote.tax,
         total=quote.total,
@@ -1301,6 +1411,7 @@ def _tool_convert_quote_to_invoice(args: Dict[str, Any], lang: str) -> Dict[str,
                 product_id=None,
                 description=q_item.description,
                 quantity=q_item.quantity,
+                unit=getattr(q_item, 'unit', None),
                 unit_price=q_item.unit_price,
                 amount=q_item.amount,
             )

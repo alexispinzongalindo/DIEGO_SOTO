@@ -55,6 +55,53 @@
 </div>
 
 <div class="card shadow-sm mb-3">
+    <div class="card-header">
+        <h5 class="mb-0">Invoice Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-2"><span class="text-muted">Customer PO:</span> {{ invoice.customer_po or '—' }}</div>
+                <div class="mb-2"><span class="text-muted">Rep:</span> {{ invoice.rep or '—' }}</div>
+                <div class="mb-2"><span class="text-muted">Project:</span> {{ invoice.project or '—' }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-2"><span class="text-muted">Ship Date:</span> {{ invoice.ship_date.strftime('%Y-%m-%d') if invoice.ship_date else '—' }}</div>
+                <div class="mb-2"><span class="text-muted">Ship Via:</span> {{ invoice.ship_via or '—' }}</div>
+                <div class="mb-2"><span class="text-muted">FOB:</span> {{ invoice.fob or '—' }}</div>
+            </div>
+        </div>
+
+        <div class="row mt-2">
+            <div class="col-md-6">
+                <div class="text-muted small">Bill To</div>
+                <div class="fw-semibold">{{ invoice.bill_to_name or (invoice.customer.name if invoice.customer else '') or '—' }}</div>
+                <div>{{ invoice.bill_to_address or (invoice.customer.address if invoice.customer else '') or '' }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted small">Ship To</div>
+                <div class="fw-semibold">{{ invoice.ship_to_name or '—' }}</div>
+                <div>{{ invoice.ship_to_address or '' }}</div>
+            </div>
+        </div>
+
+        {% if invoice.authorized_signature %}
+        <div class="mt-3">
+            <div class="text-muted small">Authorized Signature</div>
+            <div>{{ invoice.authorized_signature }}</div>
+        </div>
+        {% endif %}
+
+        {% if invoice.side_notes %}
+        <div class="mt-3">
+            <div class="text-muted small">Side Notes</div>
+            <div style="white-space: pre-wrap;">{{ invoice.side_notes }}</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Line Items</h5>
         <div class="text-muted small">{{ items|length }} item(s)</div>
@@ -66,6 +113,7 @@
                     <tr>
                         <th>Description</th>
                         <th class="text-end">Qty</th>
+                        <th>Unit</th>
                         <th class="text-end">Unit Price</th>
                         <th class="text-end">Amount</th>
                     </tr>
@@ -75,12 +123,13 @@
                     <tr>
                         <td>{{ item.description or (item.product.description if item.product else '') }}</td>
                         <td class="text-end">{{ item.quantity or '' }}</td>
+                        <td>{{ item.unit or (item.product.unit if item.product else '') or '' }}</td>
                         <td class="text-end">${{ "%0.2f"|format(item.unit_price or 0) }}</td>
                         <td class="text-end">${{ "%0.2f"|format(item.amount or 0) }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-4">
+                        <td colspan="5" class="text-center py-4">
                             <div class="text-muted">No line items found</div>
                         </td>
                     </tr>

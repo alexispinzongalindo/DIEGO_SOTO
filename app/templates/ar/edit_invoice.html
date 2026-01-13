@@ -57,6 +57,88 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.customer_po.label(class="form-label") }}
+                            {{ form.customer_po(class="form-control" + (' is-invalid' if form.customer_po.errors else ''), placeholder="PO #") }}
+                            {% for error in form.customer_po.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.rep.label(class="form-label") }}
+                            {{ form.rep(class="form-control" + (' is-invalid' if form.rep.errors else ''), placeholder="Rep") }}
+                            {% for error in form.rep.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.project.label(class="form-label") }}
+                            {{ form.project(class="form-control" + (' is-invalid' if form.project.errors else ''), placeholder="Project") }}
+                            {% for error in form.project.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.ship_date.label(class="form-label") }}
+                            {{ form.ship_date(class="form-control" + (' is-invalid' if form.ship_date.errors else '')) }}
+                            {% for error in form.ship_date.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.ship_via.label(class="form-label") }}
+                            {{ form.ship_via(class="form-control" + (' is-invalid' if form.ship_via.errors else ''), placeholder="Ship Via") }}
+                            {% for error in form.ship_via.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.fob.label(class="form-label") }}
+                            {{ form.fob(class="form-control" + (' is-invalid' if form.fob.errors else ''), placeholder="FOB") }}
+                            {% for error in form.fob.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.bill_to_name.label(class="form-label") }}
+                            {{ form.bill_to_name(class="form-control" + (' is-invalid' if form.bill_to_name.errors else ''), placeholder="Bill To") }}
+                            {% for error in form.bill_to_name.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.ship_to_name.label(class="form-label") }}
+                            {{ form.ship_to_name(class="form-control" + (' is-invalid' if form.ship_to_name.errors else ''), placeholder="Ship To") }}
+                            {% for error in form.ship_to_name.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.bill_to_address.label(class="form-label") }}
+                            {{ form.bill_to_address(class="form-control" + (' is-invalid' if form.bill_to_address.errors else ''), placeholder="Bill To Address") }}
+                            {% for error in form.bill_to_address.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.ship_to_address.label(class="form-label") }}
+                            {{ form.ship_to_address(class="form-control" + (' is-invalid' if form.ship_to_address.errors else ''), placeholder="Ship To Address") }}
+                            {% for error in form.ship_to_address.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
                     <div class="card mb-3">
                         <div class="card-header">
                             <div class="d-flex justify-content-between align-items-center">
@@ -75,6 +157,7 @@
                                             <th style="width: 56px;" class="text-center">#</th>
                                             <th style="min-width: 240px;">Description</th>
                                             <th style="width: 110px;" class="text-end">Qty</th>
+                                            <th style="width: 110px;">Unit</th>
                                             <th style="width: 170px;" class="text-end">Price</th>
                                         </tr>
                                     </thead>
@@ -91,6 +174,12 @@
                                             <td>
                                                 {{ item.form.quantity(class="form-control text-end" + (' is-invalid' if item.form.quantity.errors else ''), placeholder="0") }}
                                                 {% for error in item.form.quantity.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {{ item.form.unit(class="form-control" + (' is-invalid' if item.form.unit.errors else ''), placeholder="EA") }}
+                                                {% for error in item.form.unit.errors %}
                                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                                 {% endfor %}
                                             </td>
@@ -144,6 +233,22 @@
                         {{ form.notes.label(class="form-label") }}
                         {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes", spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
                         {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.side_notes.label(class="form-label") }}
+                        {{ form.side_notes(class="form-control" + (' is-invalid' if form.side_notes.errors else ''), rows=4, placeholder="Side notes (prints on the invoice)", spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
+                        {% for error in form.side_notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.authorized_signature.label(class="form-label") }}
+                        {{ form.authorized_signature(class="form-control" + (' is-invalid' if form.authorized_signature.errors else ''), placeholder="Authorized Signature") }}
+                        {% for error in form.authorized_signature.errors %}
                         <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
                     </div>

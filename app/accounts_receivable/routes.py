@@ -1,16 +1,18 @@
 from datetime import date, timedelta
 from io import BytesIO
+import os
 import re
 
 from flask import render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required
 from fpdf import FPDF
+from sqlalchemy import inspect
 
 from app import db
 from app.accounts_receivable import bp
 from app.accounts_receivable.forms import CustomerForm, InvoiceForm, QuoteForm, PaymentForm, EmailInvoiceForm, ItemForm, DeleteForm
 from app.auth.email import send_email_with_attachments_sync
-from app.models import Customer, Invoice, Quote, Payment, InvoiceItem, QuoteItem, Product
+from app.models import Customer, Invoice, Quote, Payment, InvoiceItem, QuoteItem, Product, AppSetting
 
 
 def _digits_only(value: str) -> str:
@@ -37,10 +39,155 @@ def _compute_due_date(invoice_date, terms: str):
     return invoice_date + timedelta(days=days)
 
 
+def _company_header_settings() -> dict:
+    try:
+        if not inspect(db.engine).has_table('app_setting'):
+            return {}
+        keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+        rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
+        vals = {r.key: (r.value or '').strip() for r in rows}
+        return {
+            'name': vals.get('company_name', ''),
+            'address': vals.get('company_address', ''),
+            'phone': vals.get('company_phone', ''),
+            'email': vals.get('company_email', ''),
+            'logo_path': vals.get('company_logo_path', ''),
+        }
+    except Exception:
+        db.session.rollback()
+        return {}
+
+
+def _render_company_header_pdf(pdf: FPDF) -> None:
+    header = _company_header_settings()
+    logo_path = (header.get('logo_path') or '').strip()
+    name = (header.get('name') or '').strip()
+    address = (header.get('address') or '').strip()
+    phone = (header.get('phone') or '').strip()
+    email = (header.get('email') or '').strip()
+
+    start_y = 10
+    if logo_path:
+        abs_logo = os.path.join(current_app.root_path, logo_path)
+        if os.path.exists(abs_logo):
+            try:
+                pdf.image(abs_logo, x=10, y=start_y, w=28)
+            except Exception:
+                pass
+
+    x_text = 42
+    y = start_y
+
+    if name:
+        pdf.set_xy(x_text, y)
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.cell(0, 6, name, ln=True)
+        y = pdf.get_y()
+
+    pdf.set_font('Helvetica', '', 10)
+
+    if address:
+        for line in [ln.strip() for ln in address.splitlines() if ln.strip()]:
+            pdf.set_x(x_text)
+            pdf.cell(0, 5, line, ln=True)
+        y = pdf.get_y()
+
+    if phone or email:
+        contact = ' / '.join([p for p in [phone, email] if p])
+        pdf.set_x(x_text)
+        pdf.cell(0, 5, contact, ln=True)
+        y = pdf.get_y()
+
+    if y < 30:
+        y = 30
+    pdf.ln(2)
+
+
+def _build_quote_pdf(quote, items):
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+
+    _render_company_header_pdf(pdf)
+
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Quote', ln=True)
+
+    pdf.set_font('Helvetica', '', 11)
+    pdf.cell(0, 6, f"Quote #: {quote.number}", ln=True)
+    pdf.cell(0, 6, f"Quote Date: {quote.date.strftime('%Y-%m-%d') if quote.date else ''}", ln=True)
+    if quote.valid_until:
+        pdf.cell(0, 6, f"Valid Until: {quote.valid_until.strftime('%Y-%m-%d')}", ln=True)
+    if quote.project:
+        pdf.cell(0, 6, f"Project: {quote.project}", ln=True)
+    if quote.rep:
+        pdf.cell(0, 6, f"Rep: {quote.rep}", ln=True)
+    if quote.customer:
+        pdf.cell(0, 6, f"Customer: {quote.customer.name}", ln=True)
+    if quote.customer_tel:
+        pdf.cell(0, 6, f"Cust. Tel.: {quote.customer_tel}", ln=True)
+    if quote.customer_fax:
+        pdf.cell(0, 6, f"Cust. Fax: {quote.customer_fax}", ln=True)
+    if quote.terms:
+        pdf.cell(0, 6, f"Terms: {quote.terms}", ln=True)
+    pdf.ln(4)
+
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(75, 8, 'Description', border=1)
+    pdf.cell(18, 8, 'Qty', border=1, align='R')
+    pdf.cell(17, 8, 'Unit', border=1)
+    pdf.cell(30, 8, 'Unit Price', border=1, align='R')
+    pdf.cell(30, 8, 'Amount', border=1, align='R')
+    pdf.ln(8)
+
+    pdf.set_font('Helvetica', '', 10)
+    for item in items:
+        desc = item.description or (item.product.description if item.product else '')
+        qty = float(item.quantity or 0)
+        unit = (getattr(item, 'unit', None) or (item.product.unit if item.product else '') or '').strip()
+        unit_price = float(item.unit_price or 0)
+        amount = float(item.amount or 0)
+        pdf.cell(75, 8, (desc[:38] + '...') if len(desc) > 41 else desc, border=1)
+        pdf.cell(18, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(17, 8, unit[:10], border=1)
+        pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
+        pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
+        pdf.ln(8)
+
+    pdf.ln(4)
+    pdf.set_font('Helvetica', '', 11)
+    subtotal = float(quote.subtotal or 0)
+    tax = float(quote.tax or 0)
+    total = float(quote.total or 0)
+    pdf.cell(140, 6, 'Subtotal', align='R')
+    pdf.cell(30, 6, f"${subtotal:,.2f}", ln=True, align='R')
+    pdf.cell(140, 6, 'Tax', align='R')
+    pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.cell(140, 7, 'Total', align='R')
+    pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+
+    printed = (getattr(quote, 'printed_notes', None) or '').strip()
+    if printed:
+        pdf.ln(6)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.cell(0, 6, 'Notes', ln=True)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.multi_cell(0, 4.5, printed)
+
+    out = pdf.output(dest='S')
+    if isinstance(out, str):
+        out = out.encode('latin-1')
+    return out
+
+
 def _build_invoice_pdf(invoice, items):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
+
+    _render_company_header_pdf(pdf)
+
     pdf.set_font('Helvetica', 'B', 16)
     pdf.cell(0, 10, 'Invoice', ln=True)
 
@@ -50,11 +197,34 @@ def _build_invoice_pdf(invoice, items):
     pdf.cell(0, 6, f"Due Date: {invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else ''}", ln=True)
     if invoice.customer:
         pdf.cell(0, 6, f"Customer: {invoice.customer.name}", ln=True)
+        if invoice.customer.phone:
+            pdf.cell(0, 6, f"Customer Phone: {invoice.customer.phone}", ln=True)
+        if getattr(invoice.customer, 'fax', None):
+            pdf.cell(0, 6, f"Customer Fax: {invoice.customer.fax}", ln=True)
+        if getattr(invoice.customer, 'alt_phone', None):
+            pdf.cell(0, 6, f"Customer Alt Phone: {invoice.customer.alt_phone}", ln=True)
+    if invoice.customer_po:
+        pdf.cell(0, 6, f"Customer PO #: {invoice.customer_po}", ln=True)
+    if invoice.terms:
+        pdf.cell(0, 6, f"Terms: {invoice.terms}", ln=True)
+    if invoice.rep:
+        pdf.cell(0, 6, f"Rep: {invoice.rep}", ln=True)
+    if invoice.ship_date:
+        pdf.cell(0, 6, f"Ship Date: {invoice.ship_date.strftime('%Y-%m-%d')}", ln=True)
+    if invoice.ship_via:
+        pdf.cell(0, 6, f"Ship Via: {invoice.ship_via}", ln=True)
+    if invoice.fob:
+        pdf.cell(0, 6, f"FOB: {invoice.fob}", ln=True)
+    if invoice.project:
+        pdf.cell(0, 6, f"Project: {invoice.project}", ln=True)
+    if getattr(invoice, 'side_notes', None):
+        pdf.cell(0, 6, f"Side Notes: {(invoice.side_notes or '').strip()}", ln=True)
     pdf.ln(4)
 
     pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(90, 8, 'Description', border=1)
-    pdf.cell(20, 8, 'Qty', border=1, align='R')
+    pdf.cell(75, 8, 'Description', border=1)
+    pdf.cell(18, 8, 'Qty', border=1, align='R')
+    pdf.cell(17, 8, 'Unit', border=1)
     pdf.cell(30, 8, 'Unit Price', border=1, align='R')
     pdf.cell(30, 8, 'Amount', border=1, align='R')
     pdf.ln(8)
@@ -63,10 +233,12 @@ def _build_invoice_pdf(invoice, items):
     for item in items:
         desc = item.description or (item.product.description if item.product else '')
         qty = float(item.quantity or 0)
+        unit = (getattr(item, 'unit', None) or (item.product.unit if item.product else '') or '').strip()
         unit_price = float(item.unit_price or 0)
         amount = float(item.amount or 0)
-        pdf.cell(90, 8, (desc[:45] + '...') if len(desc) > 48 else desc, border=1)
-        pdf.cell(20, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(75, 8, (desc[:38] + '...') if len(desc) > 41 else desc, border=1)
+        pdf.cell(18, 8, f"{qty:g}", border=1, align='R')
+        pdf.cell(17, 8, unit[:10], border=1)
         pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
         pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
         pdf.ln(8)
@@ -163,6 +335,8 @@ def edit_customer(id):
         customer.name = form.name.data
         customer.address = form.address.data
         customer.phone = form.phone.data
+        customer.fax = form.fax.data
+        customer.alt_phone = form.alt_phone.data
         customer.email = form.email.data
         customer.tax_id = form.tax_id.data
         customer.credit_limit = form.credit_limit.data
@@ -207,6 +381,8 @@ def create_customer():
             name=form.name.data,
             address=form.address.data,
             phone=form.phone.data,
+            fax=form.fax.data,
+            alt_phone=form.alt_phone.data,
             email=form.email.data,
             tax_id=form.tax_id.data,
             credit_limit=form.credit_limit.data,
@@ -284,6 +460,17 @@ def create_invoice():
             if computed:
                 form.due_date.data = computed
 
+        selected = Customer.query.get(form.customer_id.data)
+        if selected:
+            if not (form.bill_to_name.data or '').strip():
+                form.bill_to_name.data = selected.name
+            if not (form.bill_to_address.data or '').strip():
+                form.bill_to_address.data = selected.address
+            if not (form.ship_to_name.data or '').strip():
+                form.ship_to_name.data = selected.name
+            if not (form.ship_to_address.data or '').strip():
+                form.ship_to_address.data = selected.address
+
     if form.validate_on_submit():
         invoice_number = _digits_only(form.number.data)
         if not invoice_number:
@@ -294,6 +481,7 @@ def create_invoice():
         for item_form in form.items:
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
+            unit = (item_form.form.unit.data or '').strip() or None
             unit_price = item_form.form.unit_price.data
 
             is_blank = (not description) and (qty is None) and (unit_price is None)
@@ -317,6 +505,7 @@ def create_invoice():
             item_rows.append({
                 'description': description,
                 'quantity': qty,
+                'unit': unit,
                 'unit_price': unit_price,
                 'amount': amount,
             })
@@ -338,12 +527,24 @@ def create_invoice():
             date=form.date.data,
             due_date=(form.due_date.data or _compute_due_date(form.date.data, form.terms.data)),
             customer_id=form.customer_id.data,
+            customer_po=(form.customer_po.data or '').strip() or None,
+            rep=(form.rep.data or '').strip() or None,
+            ship_date=form.ship_date.data,
+            ship_via=(form.ship_via.data or '').strip() or None,
+            fob=(form.fob.data or '').strip() or None,
+            project=(form.project.data or '').strip() or None,
+            bill_to_name=(form.bill_to_name.data or '').strip() or None,
+            bill_to_address=(form.bill_to_address.data or '').strip() or None,
+            ship_to_name=(form.ship_to_name.data or '').strip() or None,
+            ship_to_address=(form.ship_to_address.data or '').strip() or None,
+            authorized_signature=(form.authorized_signature.data or '').strip() or None,
             subtotal=subtotal,
             tax=tax,
             total=total,
             status='open',
             terms=form.terms.data,
             notes=form.notes.data,
+            side_notes=form.side_notes.data,
         )
         db.session.add(invoice)
 
@@ -352,6 +553,7 @@ def create_invoice():
                 invoice=invoice,
                 description=row['description'],
                 quantity=row['quantity'],
+                unit=row['unit'],
                 unit_price=row['unit_price'],
                 amount=row['amount'],
             )
@@ -387,6 +589,13 @@ def create_quote():
         if not form.customer_id.data:
             form.customer_id.data = customers[0].id
 
+        selected = Customer.query.get(form.customer_id.data)
+        if selected:
+            if not (form.customer_tel.data or '').strip():
+                form.customer_tel.data = selected.phone
+            if not (form.customer_fax.data or '').strip():
+                form.customer_fax.data = getattr(selected, 'fax', None)
+
     if form.validate_on_submit():
         if not form.due_date.data:
             computed = _compute_due_date(form.date.data, form.terms.data)
@@ -397,6 +606,7 @@ def create_quote():
         for item_form in form.items:
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
+            unit = (item_form.form.unit.data or '').strip() or None
             unit_price = item_form.form.unit_price.data
 
             is_blank = (not description) and (qty is None) and (unit_price is None)
@@ -420,6 +630,7 @@ def create_quote():
             item_rows.append({
                 'description': description,
                 'quantity': qty,
+                'unit': unit,
                 'unit_price': unit_price,
                 'amount': amount,
             })
@@ -436,12 +647,17 @@ def create_quote():
             due_date=form.due_date.data,
             valid_until=form.valid_until.data,
             customer_id=form.customer_id.data,
+            project=(form.project.data or '').strip() or None,
+            rep=(form.rep.data or '').strip() or None,
+            customer_tel=(form.customer_tel.data or '').strip() or None,
+            customer_fax=(form.customer_fax.data or '').strip() or None,
             subtotal=subtotal,
             tax=tax,
             total=total,
             status=form.status.data,
             terms=form.terms.data,
             notes=form.notes.data,
+            printed_notes=form.printed_notes.data,
         )
         db.session.add(quote)
 
@@ -450,6 +666,7 @@ def create_quote():
                 quote=quote,
                 description=row['description'],
                 quantity=row['quantity'],
+                unit=row['unit'],
                 unit_price=row['unit_price'],
                 amount=row['amount'],
             )
@@ -503,6 +720,7 @@ def edit_quote(id):
         for idx, q_item in enumerate(existing_items[: len(form.items)]):
             form.items[idx].form.description.data = q_item.description
             form.items[idx].form.quantity.data = q_item.quantity
+            form.items[idx].form.unit.data = q_item.unit
             form.items[idx].form.unit_price.data = q_item.unit_price
 
     if form.validate_on_submit():
@@ -511,6 +729,7 @@ def edit_quote(id):
         for item_form in form.items:
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
+            unit = (item_form.form.unit.data or '').strip() or None
             unit_price = item_form.form.unit_price.data
 
             is_blank = (not description) and (qty is None) and (unit_price is None)
@@ -534,6 +753,7 @@ def edit_quote(id):
             item_rows.append({
                 'description': description,
                 'quantity': qty,
+                'unit': unit,
                 'unit_price': unit_price,
                 'amount': amount,
             })
@@ -549,12 +769,17 @@ def edit_quote(id):
         quote.due_date = form.due_date.data
         quote.valid_until = form.valid_until.data
         quote.customer_id = form.customer_id.data
+        quote.project = (form.project.data or '').strip() or None
+        quote.rep = (form.rep.data or '').strip() or None
+        quote.customer_tel = (form.customer_tel.data or '').strip() or None
+        quote.customer_fax = (form.customer_fax.data or '').strip() or None
         quote.subtotal = subtotal
         quote.tax = tax
         quote.total = total
         quote.status = form.status.data
         quote.terms = form.terms.data
         quote.notes = form.notes.data
+        quote.printed_notes = form.printed_notes.data
 
         existing_items = quote.items.all()
         for q_item in existing_items:
@@ -566,6 +791,7 @@ def edit_quote(id):
                 quote=quote,
                 description=row['description'],
                 quantity=row['quantity'],
+                unit=row['unit'],
                 unit_price=row['unit_price'],
                 amount=row['amount'],
             )
@@ -629,6 +855,8 @@ def convert_quote_to_invoice(id):
         date=date.today(),
         due_date=None,
         customer_id=quote.customer_id,
+        project=(quote.project or '').strip() or None,
+        rep=(quote.rep or '').strip() or None,
         subtotal=quote.subtotal,
         tax=quote.tax,
         total=quote.total,
@@ -643,6 +871,7 @@ def convert_quote_to_invoice(id):
             invoice=invoice,
             description=q_item.description,
             quantity=q_item.quantity,
+            unit=q_item.unit,
             unit_price=q_item.unit_price,
             amount=q_item.amount,
         )
@@ -680,14 +909,21 @@ def edit_invoice(id):
         for idx, inv_item in enumerate(existing_items[: len(form.items)]):
             form.items[idx].form.description.data = inv_item.description
             form.items[idx].form.quantity.data = inv_item.quantity
+            form.items[idx].form.unit.data = inv_item.unit
             form.items[idx].form.unit_price.data = inv_item.unit_price
 
     if form.validate_on_submit():
+        invoice_number = _digits_only(form.number.data)
+        if not invoice_number:
+            flash('Invoice number must contain only numbers.', 'danger')
+            return render_template('ar/edit_invoice.html', title=f'Edit Invoice {invoice.number}', form=form, invoice=invoice)
+
         item_rows = []
         subtotal = 0.0
         for item_form in form.items:
             description = (item_form.form.description.data or '').strip()
             qty = item_form.form.quantity.data
+            unit = (item_form.form.unit.data or '').strip() or None
             unit_price = item_form.form.unit_price.data
 
             is_blank = (not description) and (qty is None) and (unit_price is None)
@@ -726,11 +962,23 @@ def edit_invoice(id):
         invoice.date = form.date.data
         invoice.due_date = form.due_date.data
         invoice.customer_id = form.customer_id.data
+        invoice.customer_po = (form.customer_po.data or '').strip() or None
+        invoice.rep = (form.rep.data or '').strip() or None
+        invoice.ship_date = form.ship_date.data
+        invoice.ship_via = (form.ship_via.data or '').strip() or None
+        invoice.fob = (form.fob.data or '').strip() or None
+        invoice.project = (form.project.data or '').strip() or None
+        invoice.bill_to_name = (form.bill_to_name.data or '').strip() or None
+        invoice.bill_to_address = (form.bill_to_address.data or '').strip() or None
+        invoice.ship_to_name = (form.ship_to_name.data or '').strip() or None
+        invoice.ship_to_address = (form.ship_to_address.data or '').strip() or None
+        invoice.authorized_signature = (form.authorized_signature.data or '').strip() or None
         invoice.subtotal = subtotal
         invoice.tax = tax
         invoice.total = total
         invoice.terms = form.terms.data
         invoice.notes = form.notes.data
+        invoice.side_notes = form.side_notes.data
 
         existing_items = invoice.items.all()
         for inv_item in existing_items:
@@ -742,6 +990,7 @@ def edit_invoice(id):
                 invoice=invoice,
                 description=row['description'],
                 quantity=row['quantity'],
+                unit=row['unit'],
                 unit_price=row['unit_price'],
                 amount=row['amount'],
             )
@@ -916,7 +1165,21 @@ def invoice_pdf(id):
         BytesIO(pdf_data),
         mimetype='application/pdf',
         as_attachment=False,
-        download_name=f"Invoice-{invoice.number}.pdf",
+        download_name=f"invoice_{invoice.number}.pdf",
+    )
+
+
+@bp.route('/quote/<int:id>/pdf')
+@login_required
+def quote_pdf(id):
+    quote = Quote.query.get_or_404(id)
+    items = quote.items.order_by(QuoteItem.id.asc()).all()
+    pdf_data = _build_quote_pdf(quote, items)
+    return send_file(
+        BytesIO(pdf_data),
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name=f"quote_{quote.number}.pdf",
     )
 
 

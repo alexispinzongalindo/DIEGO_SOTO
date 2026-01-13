@@ -5,6 +5,19 @@
     <title>Invoice {{ invoice.number }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 640px; margin: 0 auto; padding: 20px;">
+    {% if company_header and (company_header.name or company_header.address or company_header.phone or company_header.email) %}
+    <div style="margin: 0 0 16px 0; padding: 0 0 12px 0; border-bottom: 1px solid #eee;">
+        {% if company_header.name %}
+        <div style="font-weight: 700; font-size: 16px;">{{ company_header.name }}</div>
+        {% endif %}
+        {% if company_header.address %}
+        <div style="white-space: pre-wrap;">{{ company_header.address }}</div>
+        {% endif %}
+        {% if company_header.phone or company_header.email %}
+        <div>{{ company_header.phone }}{% if company_header.phone and company_header.email %} / {% endif %}{{ company_header.email }}</div>
+        {% endif %}
+    </div>
+    {% endif %}
     <h2 style="margin: 0 0 10px 0;">Invoice {{ invoice.number }}</h2>
     <p style="margin: 0 0 10px 0;">Customer: <strong>{{ invoice.customer.name if invoice.customer else '' }}</strong></p>
     <p style="margin: 0 0 10px 0;">Total: <strong>${{ "%0.2f"|format(invoice.total or 0) }}</strong></p>

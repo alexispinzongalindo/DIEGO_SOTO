@@ -44,6 +44,30 @@
                     </div>
 
                     <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.project.label(class="form-label") }}
+                            {{ form.project(class="form-control" + (' is-invalid' if form.project.errors else ''), placeholder="Project") }}
+                            {% for error in form.project.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.terms.label(class="form-label") }}
+                            {{ form.terms(class="form-control" + (' is-invalid' if form.terms.errors else ''), placeholder="Net 30") }}
+                            {% for error in form.terms.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.rep.label(class="form-label") }}
+                            {{ form.rep(class="form-control" + (' is-invalid' if form.rep.errors else ''), placeholder="Rep") }}
+                            {% for error in form.rep.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             {{ form.customer_id.label(class="form-label") }}
                             {{ form.customer_id(class="form-select" + (' is-invalid' if form.customer_id.errors else '')) }}
@@ -63,9 +87,19 @@
                             {% endfor %}
                         </div>
                         <div class="col-md-3 mb-3">
-                            {{ form.terms.label(class="form-label") }}
-                            {{ form.terms(class="form-control" + (' is-invalid' if form.terms.errors else ''), placeholder="Net 30") }}
-                            {% for error in form.terms.errors %}
+                            {{ form.customer_tel.label(class="form-label") }}
+                            {{ form.customer_tel(class="form-control" + (' is-invalid' if form.customer_tel.errors else ''), placeholder="Customer Tel") }}
+                            {% for error in form.customer_tel.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            {{ form.customer_fax.label(class="form-label") }}
+                            {{ form.customer_fax(class="form-control" + (' is-invalid' if form.customer_fax.errors else ''), placeholder="Customer Fax") }}
+                            {% for error in form.customer_fax.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
                         </div>
@@ -89,6 +123,7 @@
                                             <th style="width: 56px;" class="text-center">#</th>
                                             <th style="min-width: 240px;">Description</th>
                                             <th style="width: 110px;" class="text-end">Qty</th>
+                                            <th style="width: 110px;">Unit</th>
                                             <th style="width: 170px;" class="text-end">Price</th>
                                         </tr>
                                     </thead>
@@ -105,6 +140,12 @@
                                             <td>
                                                 {{ item.form.quantity(class="form-control text-end" + (' is-invalid' if item.form.quantity.errors else ''), placeholder="0") }}
                                                 {% for error in item.form.quantity.errors %}
+                                                <div class="invalid-feedback d-block">{{ error }}</div>
+                                                {% endfor %}
+                                            </td>
+                                            <td>
+                                                {{ item.form.unit(class="form-control" + (' is-invalid' if item.form.unit.errors else ''), placeholder="EA") }}
+                                                {% for error in item.form.unit.errors %}
                                                 <div class="invalid-feedback d-block">{{ error }}</div>
                                                 {% endfor %}
                                             </td>
@@ -158,6 +199,14 @@
                         {{ form.notes.label(class="form-label") }}
                         {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes", spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
                         {% for error in form.notes.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-4">
+                        {{ form.printed_notes.label(class="form-label") }}
+                        {{ form.printed_notes(class="form-control" + (' is-invalid' if form.printed_notes.errors else ''), rows=5, placeholder="Printed notes (shows on the quote)", spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
+                        {% for error in form.printed_notes.errors %}
                         <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}
                     </div>

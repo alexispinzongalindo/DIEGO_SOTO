@@ -483,9 +483,21 @@ def settings():
         enabled = current_val in ('1', 'true', 't', 'yes', 'y', 'on')
         form.show_marketing_landing.data = 'on' if enabled else 'off'
 
+        form.company_name.data = _get_app_setting('company_name')
+        form.company_address.data = _get_app_setting('company_address')
+        form.company_phone.data = _get_app_setting('company_phone')
+        form.company_email.data = _get_app_setting('company_email')
+        form.company_logo_path.data = _get_app_setting('company_logo_path')
+
     if form.validate_on_submit():
         sel = (form.show_marketing_landing.data or 'off').strip().lower()
         _set_app_setting('show_marketing_landing', 'on' if sel == 'on' else 'off')
+
+        _set_app_setting('company_name', form.company_name.data or '')
+        _set_app_setting('company_address', form.company_address.data or '')
+        _set_app_setting('company_phone', form.company_phone.data or '')
+        _set_app_setting('company_email', form.company_email.data or '')
+        _set_app_setting('company_logo_path', form.company_logo_path.data or '')
         flash('Settings saved.', 'success')
         return redirect(url_for('office.settings'))
 

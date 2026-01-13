@@ -36,6 +36,35 @@
             </div>
           </div>
 
+          <hr>
+
+          <div class="mb-3">
+            <label class="form-label">{{ form.company_name.label.text }}</label>
+            {{ form.company_name(class_='form-control') }}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">{{ form.company_address.label.text }}</label>
+            {{ form.company_address(class_='form-control', rows=3, placeholder='Street\nCity, State ZIP') }}
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">{{ form.company_phone.label.text }}</label>
+              {{ form.company_phone(class_='form-control') }}
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">{{ form.company_email.label.text }}</label>
+              {{ form.company_email(class_='form-control') }}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">{{ form.company_logo_path.label.text }}</label>
+            {{ form.company_logo_path(class_='form-control', placeholder='static/img/logo.png') }}
+            <div class="form-text">Path relative to the app root (example: <code>static/img/logo.png</code>).</div>
+          </div>
+
           <div class="d-flex justify-content-end">
             {{ form.submit(class_='btn btn-primary') }}
           </div>

@@ -9,6 +9,7 @@
     <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="{{ url_for('ar.quotes') }}">Back</a>
         <a class="btn btn-outline-secondary" href="{{ url_for('ar.edit_quote', id=quote.id) }}"><i class="bi bi-pencil"></i> Edit</a>
+        <a class="btn btn-outline-primary" target="_blank" href="{{ url_for('ar.quote_pdf', id=quote.id) }}"><i class="bi bi-printer"></i> Print</a>
         {% if quote.invoice_id %}
             <a class="btn btn-outline-primary" href="{{ url_for('ar.view_invoice', id=quote.invoice_id) }}"><i class="bi bi-receipt"></i> View Invoice</a>
         {% else %}
@@ -68,6 +69,25 @@
 </div>
 
 <div class="card shadow-sm mb-3">
+    <div class="card-header">
+        <h5 class="mb-0">Quote Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-2"><span class="text-muted">Project:</span> {{ quote.project or '—' }}</div>
+                <div class="mb-2"><span class="text-muted">Rep:</span> {{ quote.rep or '—' }}</div>
+                <div class="mb-2"><span class="text-muted">Terms:</span> {{ quote.terms or '—' }}</div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-2"><span class="text-muted">Cust. Tel.:</span> {{ quote.customer_tel or (quote.customer.phone if quote.customer else '') or '—' }}</div>
+                <div class="mb-2"><span class="text-muted">Cust. Fax:</span> {{ quote.customer_fax or (quote.customer.fax if quote.customer else '') or '—' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Line Items</h5>
         <div class="text-muted small">{{ items|length }} item(s)</div>
@@ -79,6 +99,7 @@
                     <tr>
                         <th>Description</th>
                         <th class="text-end">Qty</th>
+                        <th>Unit</th>
                         <th class="text-end">Unit Price</th>
                         <th class="text-end">Amount</th>
                     </tr>
@@ -88,12 +109,13 @@
                     <tr>
                         <td>{{ item.description or (item.product.description if item.product else '') }}</td>
                         <td class="text-end">{{ item.quantity or '' }}</td>
+                        <td>{{ item.unit or (item.product.unit if item.product else '') or '' }}</td>
                         <td class="text-end">${{ "%0.2f"|format(item.unit_price or 0) }}</td>
                         <td class="text-end">${{ "%0.2f"|format(item.amount or 0) }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="4" class="text-center py-4">
+                        <td colspan="5" class="text-center py-4">
                             <div class="text-muted">No line items found</div>
                         </td>
                     </tr>
@@ -138,7 +160,14 @@
         {% if quote.notes %}
         <div class="mt-3">
             <div class="text-muted small">Notes</div>
-            <div>{{ quote.notes }}</div>
+            <div style="white-space: pre-wrap;">{{ quote.notes }}</div>
+        </div>
+        {% endif %}
+
+        {% if quote.printed_notes %}
+        <div class="mt-3">
+            <div class="text-muted small">Printed Notes</div>
+            <div style="white-space: pre-wrap;">{{ quote.printed_notes }}</div>
         </div>
         {% endif %}
     </div>

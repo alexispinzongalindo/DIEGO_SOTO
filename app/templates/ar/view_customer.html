@@ -47,6 +47,25 @@
     </div>
 </div>
 
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Fax</div>
+                <div class="fw-semibold">{{ customer.fax or '—' }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">Alt Phone</div>
+                <div class="fw-semibold">{{ customer.alt_phone or '—' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if customer.address or customer.tax_id %}
 <div class="card shadow-sm mb-3">
     <div class="card-header">
