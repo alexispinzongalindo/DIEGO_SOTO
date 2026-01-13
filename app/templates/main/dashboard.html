@@ -83,7 +83,7 @@
                 <div class="mt-2">
                     {% for quote in quotes_due_list[:2] %}
                     <div class="d-flex justify-content-between">
-                        <span class="small">{{ quote.customer.name if quote.customer else '' }}</span>
+                        <span class="small">{{ quote.number }} {{ quote.customer.name if quote.customer else '' }}</span>
                         <span class="small">{{ quote.due_date.strftime('%Y-%m-%d') if quote.due_date else '' }}</span>
                     </div>
                     {% else %}
