@@ -1,6 +1,10 @@
-from app import create_app, db
-from app.models import User
+from datetime import datetime
 import os
+
+from sqlalchemy import inspect
+
+from app import create_app, db
+from app.models import User, AppSetting
 
 def ensure_owner_user():
     owner_username = (os.environ.get('OWNER_USERNAME') or '').strip() or 'admin'
@@ -32,11 +36,43 @@ def ensure_owner_user():
     else:
         print("Owner user already exists.")
 
+
+def ensure_company_settings() -> None:
+    try:
+        if not inspect(db.engine).has_table('app_setting'):
+            return
+
+        defaults = {
+            'company_name': (os.environ.get('COMPANY_NAME') or '').strip() or 'Diego Soto & Associates',
+            'company_address': (os.environ.get('COMPANY_ADDRESS') or '').strip(),
+            'company_phone': (os.environ.get('COMPANY_PHONE') or '').strip(),
+            'company_fax': (os.environ.get('COMPANY_FAX') or '').strip(),
+            'company_email': (os.environ.get('COMPANY_EMAIL') or '').strip(),
+            'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
+        }
+
+        now = datetime.utcnow()
+        for key, val in defaults.items():
+            row = AppSetting.query.filter_by(key=key).first()
+            if row is None:
+                row = AppSetting(key=key, value=val, updated_at=now)
+                db.session.add(row)
+                continue
+            existing = (row.value or '').strip()
+            if (not existing) and val:
+                row.value = val
+                row.updated_at = now
+
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
 app = create_app()
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         ensure_owner_user()
+        ensure_company_settings()
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
