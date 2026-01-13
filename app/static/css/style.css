@@ -6,6 +6,19 @@ body { background-color: #f8f9fa; }
   min-height: 56px;
 }
 
+.app-navbar .navbar-brand {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.app-navbar .navbar-logo {
+  height: 44px;
+  width: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  filter: contrast(1.05) saturate(1.05);
+}
+
 .app-navbar .navbar-brand,
 .app-navbar .nav-link {
   display: inline-flex;
