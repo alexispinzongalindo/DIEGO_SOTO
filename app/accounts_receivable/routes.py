@@ -45,8 +45,14 @@ def _company_header_settings() -> dict:
             'company_name': (os.environ.get('COMPANY_NAME') or '').strip() or 'Diego Soto & Associates',
             'company_address': (os.environ.get('COMPANY_ADDRESS') or '').strip(),
             'company_phone': (os.environ.get('COMPANY_PHONE') or '').strip(),
+            'company_phone_1': (os.environ.get('COMPANY_PHONE_1') or '').strip(),
+            'company_phone_2': (os.environ.get('COMPANY_PHONE_2') or '').strip(),
+            'company_phone_3': (os.environ.get('COMPANY_PHONE_3') or '').strip(),
             'company_fax': (os.environ.get('COMPANY_FAX') or '').strip(),
             'company_email': (os.environ.get('COMPANY_EMAIL') or '').strip(),
+            'company_email_1': (os.environ.get('COMPANY_EMAIL_1') or '').strip(),
+            'company_email_2': (os.environ.get('COMPANY_EMAIL_2') or '').strip(),
+            'company_email_3': (os.environ.get('COMPANY_EMAIL_3') or '').strip(),
             'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
         }
 
@@ -55,11 +61,23 @@ def _company_header_settings() -> dict:
                 'name': defaults.get('company_name', ''),
                 'address': defaults.get('company_address', ''),
                 'phone': defaults.get('company_phone', ''),
+                'phone_1': defaults.get('company_phone_1', ''),
+                'phone_2': defaults.get('company_phone_2', ''),
+                'phone_3': defaults.get('company_phone_3', ''),
                 'fax': defaults.get('company_fax', ''),
                 'email': defaults.get('company_email', ''),
+                'email_1': defaults.get('company_email_1', ''),
+                'email_2': defaults.get('company_email_2', ''),
+                'email_3': defaults.get('company_email_3', ''),
                 'logo_path': defaults.get('company_logo_path', ''),
             }
-        keys = ['company_name', 'company_address', 'company_phone', 'company_fax', 'company_email', 'company_logo_path']
+        keys = [
+            'company_name', 'company_address',
+            'company_phone', 'company_phone_1', 'company_phone_2', 'company_phone_3',
+            'company_fax',
+            'company_email', 'company_email_1', 'company_email_2', 'company_email_3',
+            'company_logo_path',
+        ]
         rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
         vals = {r.key: (r.value or '').strip() for r in rows}
 
@@ -73,8 +91,14 @@ def _company_header_settings() -> dict:
             'name': _pick('company_name'),
             'address': _pick('company_address'),
             'phone': _pick('company_phone'),
+            'phone_1': _pick('company_phone_1'),
+            'phone_2': _pick('company_phone_2'),
+            'phone_3': _pick('company_phone_3'),
             'fax': _pick('company_fax'),
             'email': _pick('company_email'),
+            'email_1': _pick('company_email_1'),
+            'email_2': _pick('company_email_2'),
+            'email_3': _pick('company_email_3'),
             'logo_path': _pick('company_logo_path'),
         }
     except Exception:
@@ -216,9 +240,19 @@ def _build_quote_pdf(quote, items):
     logo_path = _pdf_cell_text(header.get('logo_path'))
     name = _pdf_cell_text(header.get('name'))
     address = _pdf_cell_text(header.get('address'))
-    phone = _pdf_cell_text(header.get('phone'))
+    phones = [
+        _pdf_cell_text(header.get('phone_1')),
+        _pdf_cell_text(header.get('phone_2')),
+        _pdf_cell_text(header.get('phone_3')),
+    ]
+    phones = [p for p in phones if p] or [_pdf_cell_text(header.get('phone'))]
     fax = _pdf_cell_text(header.get('fax'))
-    email = _pdf_cell_text(header.get('email'))
+    emails = [
+        _pdf_cell_text(header.get('email_1')),
+        _pdf_cell_text(header.get('email_2')),
+        _pdf_cell_text(header.get('email_3')),
+    ]
+    emails = [e for e in emails if e] or [_pdf_cell_text(header.get('email'))]
 
     pdf.rect(10, 10, 190, 30)
     pdf.rect(10, 10, 70, 30)
@@ -247,16 +281,21 @@ def _build_quote_pdf(quote, items):
         pdf.set_x(82)
     pdf.set_font('Helvetica', '', 8)
     contact_parts = []
-    if phone:
-        contact_parts.append(f"TELS. {phone}")
+    if any(phones):
+        tel = ' / '.join([p for p in phones if p])
+        if tel:
+            contact_parts.append(f"TELS. {tel}")
     if fax:
         contact_parts.append(f"FAX {fax}")
-    if email:
-        contact_parts.append(email)
     contact = ' / '.join([p for p in contact_parts if p])
     if contact:
         pdf.set_x(82)
         pdf.cell(116, 4, contact, ln=True, align='R')
+
+    email_line = ' / '.join([e for e in emails if e])
+    if email_line:
+        pdf.set_x(82)
+        pdf.cell(116, 4, email_line, ln=True, align='R')
 
     # Bill to + Quote box
     pdf.rect(10, 42, 110, 26)
@@ -389,9 +428,19 @@ def _build_invoice_pdf(invoice, items):
     logo_path = _pdf_cell_text(header.get('logo_path'))
     name = _pdf_cell_text(header.get('name'))
     address = _pdf_cell_text(header.get('address'))
-    phone = _pdf_cell_text(header.get('phone'))
+    phones = [
+        _pdf_cell_text(header.get('phone_1')),
+        _pdf_cell_text(header.get('phone_2')),
+        _pdf_cell_text(header.get('phone_3')),
+    ]
+    phones = [p for p in phones if p] or [_pdf_cell_text(header.get('phone'))]
     fax = _pdf_cell_text(header.get('fax'))
-    email = _pdf_cell_text(header.get('email'))
+    emails = [
+        _pdf_cell_text(header.get('email_1')),
+        _pdf_cell_text(header.get('email_2')),
+        _pdf_cell_text(header.get('email_3')),
+    ]
+    emails = [e for e in emails if e] or [_pdf_cell_text(header.get('email'))]
 
     pdf.rect(10, 10, 190, 30)
     pdf.rect(10, 10, 70, 30)
@@ -417,16 +466,21 @@ def _build_invoice_pdf(invoice, items):
         pdf.set_x(82)
     pdf.set_font('Helvetica', '', 8)
     contact_parts = []
-    if phone:
-        contact_parts.append(f"TELS. {phone}")
+    if any(phones):
+        tel = ' / '.join([p for p in phones if p])
+        if tel:
+            contact_parts.append(f"TELS. {tel}")
     if fax:
         contact_parts.append(f"FAX {fax}")
-    if email:
-        contact_parts.append(email)
     contact = ' / '.join([p for p in contact_parts if p])
     if contact:
         pdf.set_x(82)
         pdf.cell(116, 4, contact, ln=True, align='R')
+
+    email_line = ' / '.join([e for e in emails if e])
+    if email_line:
+        pdf.set_x(82)
+        pdf.cell(116, 4, email_line, ln=True, align='R')
 
     # Bill to
     pdf.rect(10, 42, 110, 26)

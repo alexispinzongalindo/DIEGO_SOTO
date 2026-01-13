@@ -46,8 +46,14 @@ def ensure_company_settings() -> None:
             'company_name': (os.environ.get('COMPANY_NAME') or '').strip() or 'Diego Soto & Associates',
             'company_address': (os.environ.get('COMPANY_ADDRESS') or '').strip(),
             'company_phone': (os.environ.get('COMPANY_PHONE') or '').strip(),
+            'company_phone_1': (os.environ.get('COMPANY_PHONE_1') or '').strip(),
+            'company_phone_2': (os.environ.get('COMPANY_PHONE_2') or '').strip(),
+            'company_phone_3': (os.environ.get('COMPANY_PHONE_3') or '').strip(),
             'company_fax': (os.environ.get('COMPANY_FAX') or '').strip(),
             'company_email': (os.environ.get('COMPANY_EMAIL') or '').strip(),
+            'company_email_1': (os.environ.get('COMPANY_EMAIL_1') or '').strip(),
+            'company_email_2': (os.environ.get('COMPANY_EMAIL_2') or '').strip(),
+            'company_email_3': (os.environ.get('COMPANY_EMAIL_3') or '').strip(),
             'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
         }
 
