@@ -47,6 +47,7 @@ class AdminSettingsForm(FlaskForm):
     company_name = StringField('Company Name', validators=[Optional(), Length(max=120)])
     company_address = TextAreaField('Company Address', validators=[Optional()])
     company_phone = StringField('Company Phone', validators=[Optional(), Length(max=50)])
+    company_fax = StringField('Company Fax', validators=[Optional(), Length(max=50)])
     company_email = StringField('Company Email', validators=[Optional(), Email(), Length(max=120)])
     company_logo_path = StringField('Company Logo Path', validators=[Optional(), Length(max=200)])
     submit = SubmitField('Save Settings')

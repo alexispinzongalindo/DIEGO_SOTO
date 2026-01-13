@@ -48,7 +48,7 @@ def create_app(config_class=Config):
             if not inspect(db.engine).has_table('app_setting'):
                 return {'company_header': {}}
             from app.models import AppSetting
-            keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+            keys = ['company_name', 'company_address', 'company_phone', 'company_fax', 'company_email', 'company_logo_path']
             rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
             vals = {r.key: (r.value or '').strip() for r in rows}
             return {
@@ -56,6 +56,7 @@ def create_app(config_class=Config):
                     'name': vals.get('company_name', ''),
                     'address': vals.get('company_address', ''),
                     'phone': vals.get('company_phone', ''),
+                    'fax': vals.get('company_fax', ''),
                     'email': vals.get('company_email', ''),
                     'logo_path': vals.get('company_logo_path', ''),
                 }

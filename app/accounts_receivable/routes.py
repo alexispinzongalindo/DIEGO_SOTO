@@ -43,13 +43,14 @@ def _company_header_settings() -> dict:
     try:
         if not inspect(db.engine).has_table('app_setting'):
             return {}
-        keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+        keys = ['company_name', 'company_address', 'company_phone', 'company_fax', 'company_email', 'company_logo_path']
         rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
         vals = {r.key: (r.value or '').strip() for r in rows}
         return {
             'name': vals.get('company_name', ''),
             'address': vals.get('company_address', ''),
             'phone': vals.get('company_phone', ''),
+            'fax': vals.get('company_fax', ''),
             'email': vals.get('company_email', ''),
             'logo_path': vals.get('company_logo_path', ''),
         }
@@ -64,6 +65,7 @@ def _render_company_header_pdf(pdf: FPDF) -> None:
     name = (header.get('name') or '').strip()
     address = (header.get('address') or '').strip()
     phone = (header.get('phone') or '').strip()
+    fax = (header.get('fax') or '').strip()
     email = (header.get('email') or '').strip()
 
     start_y = 10
@@ -92,8 +94,15 @@ def _render_company_header_pdf(pdf: FPDF) -> None:
             pdf.cell(0, 5, line, ln=True)
         y = pdf.get_y()
 
-    if phone or email:
-        contact = ' / '.join([p for p in [phone, email] if p])
+    if phone or fax or email:
+        parts = []
+        if phone:
+            parts.append(f"TELS. {phone}")
+        if fax:
+            parts.append(f"FAX {fax}")
+        if email:
+            parts.append(email)
+        contact = ' / '.join([p for p in parts if p])
         pdf.set_x(x_text)
         pdf.cell(0, 5, contact, ln=True)
         y = pdf.get_y()
@@ -103,77 +112,218 @@ def _render_company_header_pdf(pdf: FPDF) -> None:
     pdf.ln(2)
 
 
+def _pdf_cell_text(value) -> str:
+    return (value or '').strip()
+
+
+def _pdf_money(value) -> str:
+    try:
+        return f"${float(value or 0):,.2f}"
+    except Exception:
+        return "$0.00"
+
+
+def _pdf_lines_for_width(pdf: FPDF, text: str, width: float) -> list[str]:
+    text = (text or '').strip()
+    if not text:
+        return ['']
+    try:
+        # fpdf2
+        lines = pdf.multi_cell(width, 4.5, text, split_only=True)
+        return lines or ['']
+    except Exception:
+        return [text]
+
+
+def _pdf_table_row(pdf: FPDF, cols: list[dict], y: float, row_min_h: float = 6.0) -> float:
+    # cols: [{x,w,text,align}]
+    heights = []
+    for c in cols:
+        lines = _pdf_lines_for_width(pdf, c.get('text', ''), c['w'])
+        heights.append(max(row_min_h, len(lines) * 4.5))
+    h = max(heights) if heights else row_min_h
+    for c in cols:
+        x = c['x']
+        w = c['w']
+        text = c.get('text', '')
+        align = c.get('align', 'L')
+        pdf.set_xy(x, y)
+        pdf.multi_cell(w, 4.5, text, border=1, align=align)
+        # restore y to top of row for next cell
+        pdf.set_y(y)
+    return y + h
+
+
 def _build_quote_pdf(quote, items):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf = FPDF(format='Letter', unit='mm')
+    pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
 
-    _render_company_header_pdf(pdf)
+    pdf.set_draw_color(0, 0, 0)
+    pdf.set_line_width(0.2)
 
-    pdf.set_font('Helvetica', 'B', 16)
-    pdf.cell(0, 10, 'Quote', ln=True)
+    # Header
+    header = _company_header_settings()
+    logo_path = _pdf_cell_text(header.get('logo_path'))
+    name = _pdf_cell_text(header.get('name'))
+    address = _pdf_cell_text(header.get('address'))
+    phone = _pdf_cell_text(header.get('phone'))
+    fax = _pdf_cell_text(header.get('fax'))
+    email = _pdf_cell_text(header.get('email'))
 
-    pdf.set_font('Helvetica', '', 11)
-    pdf.cell(0, 6, f"Quote #: {quote.number}", ln=True)
-    pdf.cell(0, 6, f"Quote Date: {quote.date.strftime('%Y-%m-%d') if quote.date else ''}", ln=True)
-    if quote.valid_until:
-        pdf.cell(0, 6, f"Valid Until: {quote.valid_until.strftime('%Y-%m-%d')}", ln=True)
-    if quote.project:
-        pdf.cell(0, 6, f"Project: {quote.project}", ln=True)
-    if quote.rep:
-        pdf.cell(0, 6, f"Rep: {quote.rep}", ln=True)
-    if quote.customer:
-        pdf.cell(0, 6, f"Customer: {quote.customer.name}", ln=True)
-    if quote.customer_tel:
-        pdf.cell(0, 6, f"Cust. Tel.: {quote.customer_tel}", ln=True)
-    if quote.customer_fax:
-        pdf.cell(0, 6, f"Cust. Fax: {quote.customer_fax}", ln=True)
-    if quote.terms:
-        pdf.cell(0, 6, f"Terms: {quote.terms}", ln=True)
-    pdf.ln(4)
+    pdf.rect(10, 10, 190, 30)
+    pdf.rect(10, 10, 70, 30)
+    pdf.rect(80, 10, 120, 30)
 
-    pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(75, 8, 'Description', border=1)
-    pdf.cell(18, 8, 'Qty', border=1, align='R')
-    pdf.cell(17, 8, 'Unit', border=1)
-    pdf.cell(30, 8, 'Unit Price', border=1, align='R')
-    pdf.cell(30, 8, 'Amount', border=1, align='R')
-    pdf.ln(8)
+    if logo_path:
+        abs_logo = os.path.join(current_app.root_path, logo_path)
+        if os.path.exists(abs_logo):
+            try:
+                pdf.image(abs_logo, x=12, y=12, w=30)
+            except Exception:
+                pass
 
-    pdf.set_font('Helvetica', '', 10)
+    pdf.set_xy(12, 30)
+    pdf.set_font('Helvetica', '', 8)
+    if name:
+        pdf.cell(66, 4, name, ln=False)
+
+    pdf.set_xy(82, 12)
+    pdf.set_font('Helvetica', 'B', 9)
+    if address:
+        addr_lines = [ln.strip() for ln in address.splitlines() if ln.strip()]
+    else:
+        addr_lines = []
+    top_right_lines = addr_lines[:4]
+    for ln in top_right_lines:
+        pdf.cell(116, 4, ln, ln=True, align='R')
+        pdf.set_x(82)
+    pdf.set_font('Helvetica', '', 8)
+    contact_parts = []
+    if phone:
+        contact_parts.append(f"TELS. {phone}")
+    if fax:
+        contact_parts.append(f"FAX {fax}")
+    if email:
+        contact_parts.append(email)
+    contact = ' / '.join([p for p in contact_parts if p])
+    if contact:
+        pdf.set_x(82)
+        pdf.cell(116, 4, contact, ln=True, align='R')
+
+    # Bill to + Quote box
+    pdf.rect(10, 42, 110, 26)
+    pdf.set_font('Helvetica', 'B', 8)
+    pdf.set_xy(12, 44)
+    pdf.cell(0, 4, 'BILL TO')
+    pdf.set_font('Helvetica', '', 8)
+    bill_name = _pdf_cell_text(getattr(quote.customer, 'name', '') if quote.customer else '')
+    bill_addr = _pdf_cell_text(getattr(quote.customer, 'address', '') if quote.customer else '')
+    pdf.set_xy(12, 49)
+    pdf.multi_cell(106, 4, '\n'.join([ln for ln in [bill_name] + bill_addr.splitlines() if ln.strip()]))
+
+    pdf.rect(120, 42, 80, 26)
+    pdf.set_font('Helvetica', 'B', 12)
+    pdf.set_xy(122, 44)
+    pdf.cell(76, 6, 'QUOTE', ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_xy(122, 52)
+    pdf.cell(20, 6, 'DATE', border=1, align='C')
+    pdf.cell(28, 6, 'QUOTE NO.', border=1, align='C')
+    pdf.cell(28, 6, 'VALID UNTIL', border=1, align='C')
+    pdf.set_font('Helvetica', '', 7)
+    pdf.set_xy(122, 58)
+    pdf.cell(20, 6, quote.date.strftime('%m/%d/%Y') if quote.date else '', border=1, align='C')
+    pdf.cell(28, 6, _pdf_cell_text(quote.number), border=1, align='C')
+    pdf.cell(28, 6, quote.valid_until.strftime('%m/%d/%Y') if quote.valid_until else '', border=1, align='C')
+
+    # Field strip
+    y_strip = 70
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.rect(10, y_strip, 190, 10)
+    col_defs = [
+        ('PROJECT', 55, _pdf_cell_text(getattr(quote, 'project', ''))),
+        ('TERMS', 28, _pdf_cell_text(getattr(quote, 'terms', ''))),
+        ('REP', 20, _pdf_cell_text(getattr(quote, 'rep', ''))),
+        ('CUST. TEL.', 43, _pdf_cell_text(getattr(quote, 'customer_tel', ''))),
+        ('CUST. FAX', 44, _pdf_cell_text(getattr(quote, 'customer_fax', ''))),
+    ]
+    x = 10
+    for label, w, _ in col_defs:
+        pdf.rect(x, y_strip, w, 5)
+        pdf.set_xy(x, y_strip + 1)
+        pdf.cell(w, 3, label, align='C')
+        x += w
+    pdf.set_font('Helvetica', '', 7)
+    x = 10
+    for _, w, value in col_defs:
+        pdf.rect(x, y_strip + 5, w, 5)
+        pdf.set_xy(x + 1, y_strip + 6)
+        pdf.cell(w - 2, 3, value, align='L')
+        x += w
+
+    # Table header
+    y_table = 82
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.rect(10, y_table, 190, 7)
+    pdf.rect(10, y_table, 20, 7)
+    pdf.rect(30, y_table, 20, 7)
+    pdf.rect(50, y_table, 120, 7)
+    pdf.rect(170, y_table, 30, 7)
+    pdf.set_xy(10, y_table + 2)
+    pdf.cell(20, 3, 'QTY', align='C')
+    pdf.set_xy(30, y_table + 2)
+    pdf.cell(20, 3, 'UNIT', align='C')
+    pdf.set_xy(50, y_table + 2)
+    pdf.cell(120, 3, 'DESCRIPTION', align='C')
+    pdf.set_xy(170, y_table + 2)
+    pdf.cell(30, 3, 'TOTAL', align='C')
+
+    # Items
+    pdf.set_font('Helvetica', '', 7)
+    y = y_table + 7
     for item in items:
         desc = item.description or (item.product.description if item.product else '')
-        qty = float(item.quantity or 0)
+        qty = f"{float(item.quantity or 0):g}" if item.quantity is not None else ''
         unit = (getattr(item, 'unit', None) or (item.product.unit if item.product else '') or '').strip()
-        unit_price = float(item.unit_price or 0)
-        amount = float(item.amount or 0)
-        pdf.cell(75, 8, (desc[:38] + '...') if len(desc) > 41 else desc, border=1)
-        pdf.cell(18, 8, f"{qty:g}", border=1, align='R')
-        pdf.cell(17, 8, unit[:10], border=1)
-        pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
-        pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
-        pdf.ln(8)
+        amount = _pdf_money(item.amount)
+        y = _pdf_table_row(
+            pdf,
+            cols=[
+                {'x': 10, 'w': 20, 'text': qty, 'align': 'C'},
+                {'x': 30, 'w': 20, 'text': unit, 'align': 'C'},
+                {'x': 50, 'w': 120, 'text': _pdf_cell_text(desc), 'align': 'L'},
+                {'x': 170, 'w': 30, 'text': amount, 'align': 'R'},
+            ],
+            y=y,
+            row_min_h=6.0,
+        )
+        if y > 235:
+            pdf.add_page()
+            y = 20
 
-    pdf.ln(4)
-    pdf.set_font('Helvetica', '', 11)
-    subtotal = float(quote.subtotal or 0)
-    tax = float(quote.tax or 0)
-    total = float(quote.total or 0)
-    pdf.cell(140, 6, 'Subtotal', align='R')
-    pdf.cell(30, 6, f"${subtotal:,.2f}", ln=True, align='R')
-    pdf.cell(140, 6, 'Tax', align='R')
-    pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
-    pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(140, 7, 'Total', align='R')
-    pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+    # Totals box
+    box_h = 10
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.rect(140, 245, 60, box_h)
+    pdf.set_xy(142, 247)
+    pdf.cell(26, 6, 'TOTAL', align='L')
+    pdf.cell(32, 6, _pdf_money(quote.total), align='R')
 
+    # Signature line (matches sample position)
+    pdf.set_font('Helvetica', '', 7)
+    pdf.set_xy(10, 245)
+    pdf.cell(90, 5, 'AUTHORIZED SIGNATURE', ln=True)
+    pdf.line(10, 252, 110, 252)
+
+    # Printed notes in blue (sample block)
     printed = (getattr(quote, 'printed_notes', None) or '').strip()
     if printed:
-        pdf.ln(6)
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.cell(0, 6, 'Notes', ln=True)
-        pdf.set_font('Helvetica', '', 9)
-        pdf.multi_cell(0, 4.5, printed)
+        pdf.set_text_color(0, 0, 160)
+        pdf.set_font('Helvetica', '', 6)
+        pdf.set_xy(10, 257)
+        pdf.multi_cell(190, 3.2, printed)
+        pdf.set_text_color(0, 0, 0)
 
     out = pdf.output(dest='S')
     if isinstance(out, str):
@@ -182,79 +332,190 @@ def _build_quote_pdf(quote, items):
 
 
 def _build_invoice_pdf(invoice, items):
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf = FPDF(format='Letter', unit='mm')
+    pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
 
-    _render_company_header_pdf(pdf)
+    pdf.set_draw_color(0, 0, 0)
+    pdf.set_line_width(0.2)
 
-    pdf.set_font('Helvetica', 'B', 16)
-    pdf.cell(0, 10, 'Invoice', ln=True)
+    header = _company_header_settings()
+    logo_path = _pdf_cell_text(header.get('logo_path'))
+    name = _pdf_cell_text(header.get('name'))
+    address = _pdf_cell_text(header.get('address'))
+    phone = _pdf_cell_text(header.get('phone'))
+    fax = _pdf_cell_text(header.get('fax'))
+    email = _pdf_cell_text(header.get('email'))
 
-    pdf.set_font('Helvetica', '', 11)
-    pdf.cell(0, 6, f"Invoice #: {invoice.number}", ln=True)
-    pdf.cell(0, 6, f"Invoice Date: {invoice.date.strftime('%Y-%m-%d') if invoice.date else ''}", ln=True)
-    pdf.cell(0, 6, f"Due Date: {invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else ''}", ln=True)
-    if invoice.customer:
-        pdf.cell(0, 6, f"Customer: {invoice.customer.name}", ln=True)
-        if invoice.customer.phone:
-            pdf.cell(0, 6, f"Customer Phone: {invoice.customer.phone}", ln=True)
-        if getattr(invoice.customer, 'fax', None):
-            pdf.cell(0, 6, f"Customer Fax: {invoice.customer.fax}", ln=True)
-        if getattr(invoice.customer, 'alt_phone', None):
-            pdf.cell(0, 6, f"Customer Alt Phone: {invoice.customer.alt_phone}", ln=True)
-    if invoice.customer_po:
-        pdf.cell(0, 6, f"Customer PO #: {invoice.customer_po}", ln=True)
-    if invoice.terms:
-        pdf.cell(0, 6, f"Terms: {invoice.terms}", ln=True)
-    if invoice.rep:
-        pdf.cell(0, 6, f"Rep: {invoice.rep}", ln=True)
-    if invoice.ship_date:
-        pdf.cell(0, 6, f"Ship Date: {invoice.ship_date.strftime('%Y-%m-%d')}", ln=True)
-    if invoice.ship_via:
-        pdf.cell(0, 6, f"Ship Via: {invoice.ship_via}", ln=True)
-    if invoice.fob:
-        pdf.cell(0, 6, f"FOB: {invoice.fob}", ln=True)
-    if invoice.project:
-        pdf.cell(0, 6, f"Project: {invoice.project}", ln=True)
-    if getattr(invoice, 'side_notes', None):
-        pdf.cell(0, 6, f"Side Notes: {(invoice.side_notes or '').strip()}", ln=True)
-    pdf.ln(4)
+    pdf.rect(10, 10, 190, 30)
+    pdf.rect(10, 10, 70, 30)
+    pdf.rect(80, 10, 120, 30)
 
+    if logo_path:
+        abs_logo = os.path.join(current_app.root_path, logo_path)
+        if os.path.exists(abs_logo):
+            try:
+                pdf.image(abs_logo, x=12, y=12, w=30)
+            except Exception:
+                pass
+
+    pdf.set_xy(12, 30)
+    pdf.set_font('Helvetica', '', 8)
+    if name:
+        pdf.cell(66, 4, name, ln=False)
+
+    pdf.set_xy(82, 12)
+    pdf.set_font('Helvetica', 'B', 9)
+    addr_lines = [ln.strip() for ln in address.splitlines() if ln.strip()] if address else []
+    top_right_lines = addr_lines[:4]
+    for ln in top_right_lines:
+        pdf.cell(116, 4, ln, ln=True, align='R')
+        pdf.set_x(82)
+    pdf.set_font('Helvetica', '', 8)
+    contact_parts = []
+    if phone:
+        contact_parts.append(f"TELS. {phone}")
+    if fax:
+        contact_parts.append(f"FAX {fax}")
+    if email:
+        contact_parts.append(email)
+    contact = ' / '.join([p for p in contact_parts if p])
+    if contact:
+        pdf.set_x(82)
+        pdf.cell(116, 4, contact, ln=True, align='R')
+
+    # Bill to
+    pdf.rect(10, 42, 110, 26)
+    pdf.set_font('Helvetica', 'B', 8)
+    pdf.set_xy(12, 44)
+    pdf.cell(0, 4, 'BILL TO')
+    pdf.set_font('Helvetica', '', 8)
+    bill_name = _pdf_cell_text(invoice.bill_to_name) or _pdf_cell_text(getattr(invoice.customer, 'name', '') if invoice.customer else '')
+    bill_addr = _pdf_cell_text(invoice.bill_to_address) or _pdf_cell_text(getattr(invoice.customer, 'address', '') if invoice.customer else '')
+    pdf.set_xy(12, 49)
+    pdf.multi_cell(106, 4, '\n'.join([ln for ln in [bill_name] + bill_addr.splitlines() if ln.strip()]))
+
+    # Invoice box
+    pdf.rect(120, 42, 80, 16)
     pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(75, 8, 'Description', border=1)
-    pdf.cell(18, 8, 'Qty', border=1, align='R')
-    pdf.cell(17, 8, 'Unit', border=1)
-    pdf.cell(30, 8, 'Unit Price', border=1, align='R')
-    pdf.cell(30, 8, 'Amount', border=1, align='R')
-    pdf.ln(8)
+    pdf.set_xy(122, 44)
+    pdf.cell(76, 6, 'Invoice', ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_xy(122, 50)
+    pdf.cell(26, 6, 'DATE', border=1, align='C')
+    pdf.cell(54, 6, 'INVOICE NO.', border=1, align='C')
+    pdf.set_font('Helvetica', '', 7)
+    pdf.set_xy(122, 56)
+    pdf.cell(26, 6, invoice.date.strftime('%m/%d/%Y') if invoice.date else '', border=1, align='C')
+    pdf.cell(54, 6, _pdf_cell_text(invoice.number), border=1, align='C')
 
-    pdf.set_font('Helvetica', '', 10)
+    # Customer fax/phone/alt phone block
+    pdf.rect(120, 60, 80, 18)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_xy(120, 60)
+    pdf.cell(40, 6, 'Customer Fax', border=1, align='C')
+    pdf.cell(40, 6, 'Customer Phone', border=1, align='C')
+    pdf.set_xy(120, 66)
+    pdf.set_font('Helvetica', '', 7)
+    fax = _pdf_cell_text(getattr(invoice.customer, 'fax', '') if invoice.customer else '')
+    phone_val = _pdf_cell_text(getattr(invoice.customer, 'phone', '') if invoice.customer else '')
+    pdf.cell(40, 6, fax, border=1, align='C')
+    pdf.cell(40, 6, phone_val, border=1, align='C')
+    pdf.set_xy(120, 72)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.cell(80, 6, 'Customer Alt. Phone', border=1, align='C')
+    pdf.set_xy(120, 78)
+    pdf.set_font('Helvetica', '', 7)
+    alt_phone = _pdf_cell_text(getattr(invoice.customer, 'alt_phone', '') if invoice.customer else '')
+    pdf.cell(80, 6, alt_phone, border=1, align='C')
+
+    # Field strip row
+    y_strip = 80
+    pdf.rect(10, y_strip, 190, 10)
+    pdf.set_font('Helvetica', 'B', 7)
+    col_defs = [
+        ('CUST. P.O.#', 34, _pdf_cell_text(getattr(invoice, 'customer_po', ''))),
+        ('TERMS', 26, _pdf_cell_text(getattr(invoice, 'terms', ''))),
+        ('REP', 18, _pdf_cell_text(getattr(invoice, 'rep', ''))),
+        ('SHIP DATE', 26, invoice.ship_date.strftime('%m/%d/%Y') if invoice.ship_date else ''),
+        ('SHIP VIA', 28, _pdf_cell_text(getattr(invoice, 'ship_via', ''))),
+        ('FOB', 16, _pdf_cell_text(getattr(invoice, 'fob', ''))),
+        ('PROJECT', 42, _pdf_cell_text(getattr(invoice, 'project', ''))),
+    ]
+    x = 10
+    for label, w, _ in col_defs:
+        pdf.rect(x, y_strip, w, 5)
+        pdf.set_xy(x, y_strip + 1)
+        pdf.cell(w, 3, label, align='C')
+        x += w
+    pdf.set_font('Helvetica', '', 7)
+    x = 10
+    for _, w, value in col_defs:
+        pdf.rect(x, y_strip + 5, w, 5)
+        pdf.set_xy(x + 1, y_strip + 6)
+        pdf.cell(w - 2, 3, value, align='L')
+        x += w
+
+    # Table header
+    y_table = 92
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.rect(10, y_table, 190, 7)
+    pdf.rect(10, y_table, 20, 7)
+    pdf.rect(30, y_table, 20, 7)
+    pdf.rect(50, y_table, 120, 7)
+    pdf.rect(170, y_table, 30, 7)
+    pdf.set_xy(10, y_table + 2)
+    pdf.cell(20, 3, 'QTY', align='C')
+    pdf.set_xy(30, y_table + 2)
+    pdf.cell(20, 3, 'UNIT', align='C')
+    pdf.set_xy(50, y_table + 2)
+    pdf.cell(120, 3, 'DESCRIPTION', align='C')
+    pdf.set_xy(170, y_table + 2)
+    pdf.cell(30, 3, 'AMOUNT', align='C')
+
+    # Items
+    pdf.set_font('Helvetica', '', 7)
+    y = y_table + 7
     for item in items:
         desc = item.description or (item.product.description if item.product else '')
-        qty = float(item.quantity or 0)
+        qty = f"{float(item.quantity or 0):g}" if item.quantity is not None else ''
         unit = (getattr(item, 'unit', None) or (item.product.unit if item.product else '') or '').strip()
-        unit_price = float(item.unit_price or 0)
-        amount = float(item.amount or 0)
-        pdf.cell(75, 8, (desc[:38] + '...') if len(desc) > 41 else desc, border=1)
-        pdf.cell(18, 8, f"{qty:g}", border=1, align='R')
-        pdf.cell(17, 8, unit[:10], border=1)
-        pdf.cell(30, 8, f"${unit_price:,.2f}", border=1, align='R')
-        pdf.cell(30, 8, f"${amount:,.2f}", border=1, align='R')
-        pdf.ln(8)
+        amount = _pdf_money(item.amount)
+        y = _pdf_table_row(
+            pdf,
+            cols=[
+                {'x': 10, 'w': 20, 'text': qty, 'align': 'C'},
+                {'x': 30, 'w': 20, 'text': unit, 'align': 'C'},
+                {'x': 50, 'w': 120, 'text': _pdf_cell_text(desc), 'align': 'L'},
+                {'x': 170, 'w': 30, 'text': amount, 'align': 'R'},
+            ],
+            y=y,
+            row_min_h=6.0,
+        )
+        if y > 235:
+            pdf.add_page()
+            y = 20
 
-    pdf.ln(4)
-    pdf.set_font('Helvetica', '', 11)
-    subtotal = float(invoice.subtotal or 0)
-    tax = float(invoice.tax or 0)
-    total = float(invoice.total or 0)
-    pdf.cell(140, 6, 'Subtotal', align='R')
-    pdf.cell(30, 6, f"${subtotal:,.2f}", ln=True, align='R')
-    pdf.cell(140, 6, 'Tax', align='R')
-    pdf.cell(30, 6, f"${tax:,.2f}", ln=True, align='R')
-    pdf.set_font('Helvetica', 'B', 11)
-    pdf.cell(140, 7, 'Total', align='R')
-    pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
+    # Totals
+    pdf.set_font('Helvetica', '', 8)
+    pdf.set_xy(140, 245)
+    pdf.cell(30, 5, 'Subtotal', align='R')
+    pdf.cell(30, 5, _pdf_money(invoice.subtotal), ln=True, align='R')
+    pdf.set_x(140)
+    pdf.cell(30, 5, 'Tax', align='R')
+    pdf.cell(30, 5, _pdf_money(invoice.tax), ln=True, align='R')
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.set_x(140)
+    pdf.cell(30, 6, 'Total', align='R')
+    pdf.cell(30, 6, _pdf_money(invoice.total), ln=True, align='R')
+
+    # Side notes (prints separately; kept simple box)
+    side_notes = (getattr(invoice, 'side_notes', None) or '').strip()
+    if side_notes:
+        pdf.set_font('Helvetica', '', 6)
+        pdf.rect(10, 245, 120, 25)
+        pdf.set_xy(12, 247)
+        pdf.multi_cell(116, 3.2, side_notes)
 
     out = pdf.output(dest='S')
     if isinstance(out, str):

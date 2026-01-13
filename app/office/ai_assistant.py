@@ -673,7 +673,7 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
 
     try:
         if inspect(db.engine).has_table('app_setting'):
-            keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+            keys = ['company_name', 'company_address', 'company_phone', 'company_fax', 'company_email', 'company_logo_path']
             rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
             vals = {r.key: (r.value or '').strip() for r in rows}
             logo_path = (vals.get('company_logo_path') or '').strip()
@@ -699,9 +699,17 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
                     pdf.set_x(x_text)
                     pdf.cell(0, 5, line, ln=True)
             phone = (vals.get('company_phone') or '').strip()
+            fax = (vals.get('company_fax') or '').strip()
             email = (vals.get('company_email') or '').strip()
-            if phone or email:
-                contact = ' / '.join([p for p in [phone, email] if p])
+            if phone or fax or email:
+                parts = []
+                if phone:
+                    parts.append(f"TELS. {phone}")
+                if fax:
+                    parts.append(f"FAX {fax}")
+                if email:
+                    parts.append(email)
+                contact = ' / '.join([p for p in parts if p])
                 pdf.set_x(x_text)
                 pdf.cell(0, 5, contact, ln=True)
             pdf.ln(2)
@@ -757,14 +765,6 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf.set_font('Helvetica', 'B', 11)
     pdf.cell(140, 7, 'Total', align='R')
     pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
-
-    printed = (getattr(quote, 'printed_notes', None) or '').strip()
-    if printed:
-        pdf.ln(6)
-        pdf.set_font('Helvetica', 'B', 10)
-        pdf.cell(0, 6, 'Notes', ln=True)
-        pdf.set_font('Helvetica', '', 9)
-        pdf.multi_cell(0, 4.5, printed)
 
     out = pdf.output(dest='S')
     if isinstance(out, str):
@@ -837,7 +837,7 @@ def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
 
     try:
         if inspect(db.engine).has_table('app_setting'):
-            keys = ['company_name', 'company_address', 'company_phone', 'company_email', 'company_logo_path']
+            keys = ['company_name', 'company_address', 'company_phone', 'company_fax', 'company_email', 'company_logo_path']
             rows = AppSetting.query.filter(AppSetting.key.in_(keys)).all()
             vals = {r.key: (r.value or '').strip() for r in rows}
             logo_path = (vals.get('company_logo_path') or '').strip()
@@ -863,9 +863,17 @@ def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
                     pdf.set_x(x_text)
                     pdf.cell(0, 5, line, ln=True)
             phone = (vals.get('company_phone') or '').strip()
+            fax = (vals.get('company_fax') or '').strip()
             email = (vals.get('company_email') or '').strip()
-            if phone or email:
-                contact = ' / '.join([p for p in [phone, email] if p])
+            if phone or fax or email:
+                parts = []
+                if phone:
+                    parts.append(f"TELS. {phone}")
+                if fax:
+                    parts.append(f"FAX {fax}")
+                if email:
+                    parts.append(email)
+                contact = ' / '.join([p for p in parts if p])
                 pdf.set_x(x_text)
                 pdf.cell(0, 5, contact, ln=True)
             pdf.ln(2)
