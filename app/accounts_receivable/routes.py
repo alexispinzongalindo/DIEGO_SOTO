@@ -204,16 +204,15 @@ def _build_quote_pdf(quote, items):
     abs_logo = _resolve_logo_abs_path(logo_path)
     if abs_logo:
         try:
-            pdf.image(abs_logo, x=12, y=12, w=30)
+            pdf.image(abs_logo, x=12, y=12, h=26)
         except Exception:
             pass
 
-    pdf.set_xy(12, 30)
-    pdf.set_font('Helvetica', '', 8)
-    if name:
-        pdf.cell(66, 4, name, ln=False)
-
     pdf.set_xy(82, 12)
+    pdf.set_font('Helvetica', 'B', 10)
+    if name:
+        pdf.cell(116, 4, name, ln=True, align='R')
+        pdf.set_x(82)
     pdf.set_font('Helvetica', 'B', 9)
     if address:
         addr_lines = [ln.strip() for ln in address.splitlines() if ln.strip()]
@@ -379,16 +378,15 @@ def _build_invoice_pdf(invoice, items):
     abs_logo = _resolve_logo_abs_path(logo_path)
     if abs_logo:
         try:
-            pdf.image(abs_logo, x=12, y=12, w=30)
+            pdf.image(abs_logo, x=12, y=12, h=26)
         except Exception:
             pass
 
-    pdf.set_xy(12, 30)
-    pdf.set_font('Helvetica', '', 8)
-    if name:
-        pdf.cell(66, 4, name, ln=False)
-
     pdf.set_xy(82, 12)
+    pdf.set_font('Helvetica', 'B', 10)
+    if name:
+        pdf.cell(116, 4, name, ln=True, align='R')
+        pdf.set_x(82)
     pdf.set_font('Helvetica', 'B', 9)
     addr_lines = [ln.strip() for ln in address.splitlines() if ln.strip()] if address else []
     top_right_lines = addr_lines[:4]
