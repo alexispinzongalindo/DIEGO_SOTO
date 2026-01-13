@@ -32,7 +32,7 @@
                         {% for item in form.items %}
                         <tr>
                             <td class="text-center align-middle" data-line-number></td>
-                            <td>{{ item.form.description(class="form-control") }}</td>
+                            <td>{{ item.form.description(class="form-control", spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}</td>
                             <td>{{ item.form.quantity(class="form-control text-end") }}</td>
                             <td>{{ item.form.unit_price(class="form-control text-end") }}</td>
                         </tr>
@@ -63,7 +63,7 @@
 
             <div class="row g-3 mt-2">
                 <div class="col-md-6">{{ form.terms.label(class="form-label") }}{{ form.terms(class="form-control") }}</div>
-                <div class="col-md-6">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control", rows=2) }}</div>
+                <div class="col-md-6">{{ form.notes.label(class="form-label") }}{{ form.notes(class="form-control", rows=2, spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}</div>
             </div>
 
             <div class="mt-4 d-flex gap-2">

@@ -27,6 +27,55 @@
     window.speechSynthesis.speak(utter);
   }
 
+  function initSpellcheckAutoLang() {
+    const targets = Array.prototype.slice.call(document.querySelectorAll('input[spellcheck="true"], textarea[spellcheck="true"]'));
+    if (!targets.length) return;
+
+    const spanishCharRe = /[áéíóúñü¡¿]/i;
+    const englishWordRe = /\b(the|and|for|with|from|this|that|invoice|quote|bill|purchase|order)\b/i;
+    const spanishWordRe = /\b(el|la|los|las|de|del|que|y|para|con|por|una|un|factura|cotizaci[oó]n|cuenta|orden)\b/i;
+
+    function detectLang(text) {
+      const t = (text || '').toString();
+      if (!t.trim()) return null;
+
+      let scoreEs = 0;
+      let scoreEn = 0;
+
+      if (spanishCharRe.test(t)) scoreEs += 3;
+      const esMatches = t.match(spanishWordRe);
+      const enMatches = t.match(englishWordRe);
+      if (esMatches) scoreEs += 2;
+      if (enMatches) scoreEn += 2;
+
+      return scoreEs > scoreEn ? 'es' : 'en';
+    }
+
+    function setLang(el, lang) {
+      if (!lang) return;
+      const current = (el.getAttribute('lang') || '').toLowerCase();
+      if (current === lang) return;
+      el.setAttribute('lang', lang);
+    }
+
+    targets.forEach((el) => {
+      if (!el.getAttribute('lang')) el.setAttribute('lang', 'en');
+
+      let timer = null;
+      const handler = () => {
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          const lang = detectLang(el.value);
+          setLang(el, lang);
+        }, 250);
+      };
+
+      el.addEventListener('input', handler);
+      el.addEventListener('change', handler);
+      handler();
+    });
+  }
+
   function initTooltips() {
     if (!window.bootstrap || !window.bootstrap.Tooltip) return;
     const triggers = Array.prototype.slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
@@ -594,12 +643,14 @@
       initTooltips();
       initLineItems();
       initDueDateAuto();
+      initSpellcheckAutoLang();
       initVoice();
     });
   } else {
     initTooltips();
     initLineItems();
     initDueDateAuto();
+    initSpellcheckAutoLang();
     initVoice();
   }
 })();

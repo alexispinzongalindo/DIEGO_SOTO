@@ -69,7 +69,7 @@
 
                     <div class="mb-4">
                         {{ form.notes.label(class="form-label") }}
-                        {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes") }}
+                        {{ form.notes(class="form-control" + (' is-invalid' if form.notes.errors else ''), rows=4, placeholder="Optional notes", spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
                         {% for error in form.notes.errors %}
                         <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}

@@ -46,7 +46,7 @@
 
                     <div class="mb-3">
                         {{ form.description.label(class="form-label") }}
-                        {{ form.description(class="form-control" + (' is-invalid' if form.description.errors else ''), rows=3) }}
+                        {{ form.description(class="form-control" + (' is-invalid' if form.description.errors else ''), rows=3, spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
                         {% for error in form.description.errors %}
                         <div class="invalid-feedback d-block">{{ error }}</div>
                         {% endfor %}

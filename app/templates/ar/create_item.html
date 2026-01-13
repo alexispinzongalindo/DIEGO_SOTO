@@ -22,7 +22,7 @@
                         </div>
                         <div class="col-md-8 mb-3">
                             {{ form.description.label(class="form-label") }}
-                            {{ form.description(class="form-control" + (' is-invalid' if form.description.errors else '')) }}
+                            {{ form.description(class="form-control" + (' is-invalid' if form.description.errors else ''), spellcheck="true", lang="en", autocorrect="on", autocapitalize="sentences") }}
                             {% for error in form.description.errors %}
                             <div class="invalid-feedback">{{ error }}</div>
                             {% endfor %}
