@@ -3,8 +3,8 @@ body { background-color: #f8f9fa; }
 .footer { border-top: 1px solid #e9ecef; }
 
 .app-navbar {
-  min-height: 92px;
-  background: linear-gradient(180deg, #1a73e8 0%, #4aa3ff 100%) !important;
+  min-height: 112px;
+  background: linear-gradient(180deg, #3b8dff 0%, #7cc8ff 100%) !important;
 }
 
 .app-navbar .navbar-brand {
@@ -13,7 +13,7 @@ body { background-color: #f8f9fa; }
 }
 
 .app-navbar .navbar-logo {
-  height: 96px;
+  height: 118px;
   width: auto;
   object-fit: contain;
   mix-blend-mode: multiply;
