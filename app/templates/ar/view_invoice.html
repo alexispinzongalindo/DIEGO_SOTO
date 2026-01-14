@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Invoice{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center flex-wrap mb-3 invoice-header">
     <div>
         <h3 class="mb-0">Invoice {{ invoice.number }}</h3>
         <div class="text-muted">{{ invoice.customer.name if invoice.customer else '' }}</div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap justify-content-start justify-content-sm-end invoice-actions">
         <a class="btn btn-outline-secondary" href="{{ url_for('ar.invoices') }}">Back</a>
         <a class="btn btn-outline-secondary" href="{{ url_for('ar.edit_invoice', id=invoice.id) }}"><i class="bi bi-pencil"></i> Edit</a>
         <a class="btn btn-outline-primary" target="_blank" href="{{ url_for('ar.invoice_pdf', id=invoice.id) }}"><i class="bi bi-printer"></i> Print</a>

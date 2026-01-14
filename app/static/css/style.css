@@ -35,6 +35,15 @@ body { background-color: #f8f9fa; }
   .app-navbar .navbar-logo {
     height: 82px;
   }
+
+  .invoice-header {
+    gap: 0.5rem;
+  }
+
+  .invoice-actions {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 @media (min-width: 992px) {
