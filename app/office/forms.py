@@ -57,4 +57,5 @@ class AdminSettingsForm(FlaskForm):
     company_email_3 = StringField('Company Email 3', validators=[Optional(), Email(), Length(max=120)])
     company_logo_path = StringField('Company Logo Path', validators=[Optional(), Length(max=200)])
     invoice_important_note = TextAreaField('Invoice IMPORTANT NOTE (default)', validators=[Optional()])
+    quote_important_note = TextAreaField('Quote IMPORTANT NOTE (default)', validators=[Optional()])
     submit = SubmitField('Save Settings')

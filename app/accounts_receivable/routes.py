@@ -464,6 +464,16 @@ def _build_quote_pdf(quote, items):
 
     # Printed notes in blue (sample block)
     printed = (getattr(quote, 'printed_notes', None) or '').strip()
+    if not printed:
+        try:
+            if inspect(db.engine).has_table('app_setting'):
+                row = AppSetting.query.filter_by(key='quote_important_note').first()
+                printed = (row.value or '').strip() if row else ''
+        except Exception:
+            db.session.rollback()
+            printed = ''
+    if not printed:
+        printed = (os.environ.get('QUOTE_IMPORTANT_NOTE') or '').strip()
     if printed:
         pdf.set_text_color(0, 0, 160)
         pdf.set_font('Helvetica', '', 6)

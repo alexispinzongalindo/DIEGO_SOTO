@@ -522,6 +522,7 @@ def settings():
         form.company_email_3.data = _get_app_setting('company_email_3')
         form.company_logo_path.data = _get_app_setting('company_logo_path')
         form.invoice_important_note.data = _get_app_setting('invoice_important_note')
+        form.quote_important_note.data = _get_app_setting('quote_important_note')
 
     if form.validate_on_submit():
         sel = (form.show_marketing_landing.data or 'off').strip().lower()
@@ -544,6 +545,7 @@ def settings():
             ('company_email_3', form.company_email_3.data or ''),
             ('company_logo_path', form.company_logo_path.data or ''),
             ('invoice_important_note', form.invoice_important_note.data or ''),
+            ('quote_important_note', form.quote_important_note.data or ''),
         ]:
             ok, err = _set_app_setting(k, v)
             if not ok:

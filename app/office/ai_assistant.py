@@ -1020,6 +1020,25 @@ def _build_quote_pdf(quote: Quote, items: list[QuoteItem]) -> bytes:
     pdf.cell(140, 7, 'Total', align='R')
     pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
 
+    printed = (getattr(quote, 'printed_notes', None) or '').strip()
+    if not printed:
+        try:
+            if inspect(db.engine).has_table('app_setting'):
+                row = AppSetting.query.filter_by(key='quote_important_note').first()
+                printed = (row.value or '').strip() if row else ''
+        except Exception:
+            db.session.rollback()
+            printed = ''
+    if not printed:
+        printed = (os.environ.get('QUOTE_IMPORTANT_NOTE') or '').strip()
+
+    if printed:
+        pdf.ln(4)
+        pdf.set_text_color(0, 0, 160)
+        pdf.set_font('Helvetica', '', 8)
+        pdf.multi_cell(0, 5, printed)
+        pdf.set_text_color(0, 0, 0)
+
     out = pdf.output(dest='S')
     if isinstance(out, str):
         out = out.encode('latin-1')
