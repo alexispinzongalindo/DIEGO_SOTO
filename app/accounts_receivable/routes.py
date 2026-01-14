@@ -674,10 +674,14 @@ def _build_invoice_pdf(invoice, items):
     pdf.set_font('Helvetica', '', 7)
     left_w = 132
     right_w = 58
-    footer_h = 45
+    footer_h = 32
 
     pdf.rect(10, footer_top, left_w, footer_h)
     pdf.rect(10 + left_w, footer_top, right_w, footer_h)
+
+    prev_apb = pdf.auto_page_break
+    prev_bm = pdf.b_margin
+    pdf.set_auto_page_break(auto=False)
 
     pdf.set_xy(12, footer_top + 2)
     pdf.set_font('Helvetica', 'B', 7)
@@ -697,20 +701,15 @@ def _build_invoice_pdf(invoice, items):
     pdf.set_font('Helvetica', '', 9)
     pdf.cell(right_w - 26, 9, _pdf_money(invoice.total), border=1, ln=True, align='R')
 
-    pdf.set_x(10 + left_w)
-    pdf.set_font('Helvetica', 'B', 7)
-    pdf.cell(right_w, 6, 'TOTAL (WORD)', border=1, ln=True, align='L')
-    pdf.set_x(10 + left_w)
+    sig_y = footer_top + 14
+    pdf.set_xy(10 + left_w + 8, sig_y)
     pdf.set_font('Helvetica', '', 6.5)
-    pdf.multi_cell(right_w, 4, _pdf_amount_in_words(invoice.total), border=1)
-
-    sig_y = footer_top + footer_h - 12
-    pdf.set_xy(10 + left_w, sig_y)
-    pdf.set_font('Helvetica', '', 6.5)
-    pdf.cell(right_w, 6, '', border=1, ln=True)
-    pdf.set_x(10 + left_w)
+    pdf.cell(right_w - 16, 6, '', border=1, ln=True)
+    pdf.set_x(10 + left_w + 8)
     pdf.set_font('Helvetica', '', 6)
-    pdf.cell(right_w, 4, 'AUTHORIZED SIGNATURE', border=0, ln=True, align='C')
+    pdf.cell(right_w - 16, 4, 'AUTHORIZED SIGNATURE', border=0, ln=True, align='C')
+
+    pdf.set_auto_page_break(auto=prev_apb, margin=prev_bm)
 
     out = pdf.output(dest='S')
     if isinstance(out, str):
