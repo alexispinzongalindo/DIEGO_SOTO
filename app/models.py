@@ -40,7 +40,7 @@ class User(UserMixin, db.Model):
 class AppSetting(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(80), unique=True, index=True)
-    value = db.Column(db.String(200))
+    value = db.Column(db.Text)
     updated_at = db.Column(db.DateTime)
 
 class Customer(db.Model):
