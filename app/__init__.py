@@ -1,4 +1,5 @@
 from flask import Flask
+from flask import jsonify
 import os
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
@@ -17,6 +18,24 @@ migrate = Migrate()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    sentry_dsn = (os.environ.get('SENTRY_DSN') or '').strip()
+    if sentry_dsn:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE') or 0),
+            environment=(os.environ.get('SENTRY_ENVIRONMENT') or os.environ.get('RENDER_SERVICE_NAME') or 'production'),
+            release=(os.environ.get('SENTRY_RELEASE') or os.environ.get('RENDER_GIT_COMMIT') or None),
+            send_default_pii=False,
+        )
+
+    @app.get('/health')
+    def health():
+        return jsonify({'status': 'ok'}), 200
 
     @app.template_filter('money')
     def money_filter(value, places=2):
