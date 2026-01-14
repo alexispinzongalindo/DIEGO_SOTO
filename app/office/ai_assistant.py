@@ -766,6 +766,77 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf.cell(140, 7, 'Total', align='R')
     pdf.cell(30, 7, f"${total:,.2f}", ln=True, align='R')
 
+    def _amount_in_words(v: float) -> str:
+        try:
+            amt = float(v or 0)
+        except Exception:
+            amt = 0.0
+        amt = round(amt + 1e-9, 2)
+        dollars = int(abs(amt))
+        cents = int(round((abs(amt) - dollars) * 100))
+
+        ones = [
+            'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+            'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+        ]
+        tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+
+        def two(n: int) -> str:
+            if n < 20:
+                return ones[n]
+            t = tens[n // 10]
+            r = n % 10
+            return t if r == 0 else f"{t}-{ones[r]}"
+
+        def three(n: int) -> str:
+            if n < 100:
+                return two(n)
+            h = n // 100
+            r = n % 100
+            if r == 0:
+                return f"{ones[h]} hundred"
+            return f"{ones[h]} hundred {two(r)}"
+
+        def words(n: int) -> str:
+            if n == 0:
+                return 'zero'
+            parts = []
+            billions = n // 1_000_000_000
+            n = n % 1_000_000_000
+            millions = n // 1_000_000
+            n = n % 1_000_000
+            thousands = n // 1000
+            n = n % 1000
+            if billions:
+                parts.append(f"{three(billions)} billion")
+            if millions:
+                parts.append(f"{three(millions)} million")
+            if thousands:
+                parts.append(f"{three(thousands)} thousand")
+            if n:
+                parts.append(three(n))
+            return ' '.join(parts)
+
+        dollar_words = words(dollars)
+        dollar_label = 'dollar' if dollars == 1 else 'dollars'
+        cents_str = f"{cents:02d}/100"
+        sign = 'negative ' if amt < 0 else ''
+        return f"{sign}{dollar_words} {dollar_label} and {cents_str}".upper()
+
+    pdf.ln(3)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.cell(0, 6, 'TOTAL (WORD):', ln=True)
+    pdf.set_font('Helvetica', '', 9)
+    pdf.multi_cell(0, 5, _amount_in_words(total))
+
+    notes_text = (getattr(invoice, 'notes', None) or '').strip()
+    if notes_text:
+        pdf.ln(2)
+        pdf.set_font('Helvetica', 'B', 10)
+        pdf.cell(0, 6, 'IMPORTANT NOTE', ln=True)
+        pdf.set_font('Helvetica', '', 9)
+        pdf.multi_cell(0, 5, notes_text)
+
     out = pdf.output(dest='S')
     if isinstance(out, str):
         out = out.encode('latin-1')

@@ -196,6 +196,67 @@ def _pdf_money(value) -> str:
         return "$0.00"
 
 
+def _pdf_amount_in_words(value) -> str:
+    try:
+        amt = float(value or 0)
+    except Exception:
+        amt = 0.0
+    amt = round(amt + 1e-9, 2)
+    dollars = int(abs(amt))
+    cents = int(round((abs(amt) - dollars) * 100))
+
+    ones = [
+        'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
+        'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen',
+    ]
+    tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety']
+
+    def two(n: int) -> str:
+        if n < 20:
+            return ones[n]
+        t = tens[n // 10]
+        r = n % 10
+        return t if r == 0 else f"{t}-{ones[r]}"
+
+    def three(n: int) -> str:
+        if n < 100:
+            return two(n)
+        h = n // 100
+        r = n % 100
+        if r == 0:
+            return f"{ones[h]} hundred"
+        return f"{ones[h]} hundred {two(r)}"
+
+    def words(n: int) -> str:
+        if n == 0:
+            return 'zero'
+        parts = []
+        billions = n // 1_000_000_000
+        n = n % 1_000_000_000
+        millions = n // 1_000_000
+        n = n % 1_000_000
+        thousands = n // 1000
+        n = n % 1000
+        if billions:
+            parts.append(f"{three(billions)} billion")
+        if millions:
+            parts.append(f"{three(millions)} million")
+        if thousands:
+            parts.append(f"{three(thousands)} thousand")
+        if n:
+            parts.append(three(n))
+        return ' '.join(parts)
+
+    dollar_words = words(dollars)
+    if dollars == 1:
+        dollar_label = 'dollar'
+    else:
+        dollar_label = 'dollars'
+    cents_str = f"{cents:02d}/100"
+    sign = 'negative ' if amt < 0 else ''
+    return f"{sign}{dollar_words} {dollar_label} and {cents_str}".upper()
+
+
 def _pdf_lines_for_width(pdf: FPDF, text: str, width: float) -> list[str]:
     text = (text or '').strip()
     if not text:
@@ -593,26 +654,55 @@ def _build_invoice_pdf(invoice, items):
             pdf.add_page()
             y = 20
 
-    # Totals
-    pdf.set_font('Helvetica', '', 8)
-    pdf.set_xy(140, 245)
-    pdf.cell(30, 5, 'Subtotal', align='R')
-    pdf.cell(30, 5, _pdf_money(invoice.subtotal), ln=True, align='R')
-    pdf.set_x(140)
-    pdf.cell(30, 5, 'Tax', align='R')
-    pdf.cell(30, 5, _pdf_money(invoice.tax), ln=True, align='R')
-    pdf.set_font('Helvetica', 'B', 9)
-    pdf.set_x(140)
-    pdf.cell(30, 6, 'Total', align='R')
-    pdf.cell(30, 6, _pdf_money(invoice.total), ln=True, align='R')
+    footer_top = 235
+    if y > footer_top - 10:
+        pdf.add_page()
+        footer_top = 235
 
-    # Side notes (prints separately; kept simple box)
-    side_notes = (getattr(invoice, 'side_notes', None) or '').strip()
-    if side_notes:
-        pdf.set_font('Helvetica', '', 6)
-        pdf.rect(10, 245, 120, 25)
-        pdf.set_xy(12, 247)
-        pdf.multi_cell(116, 3.2, side_notes)
+    notes_text = (getattr(invoice, 'notes', None) or '').strip()
+    if not notes_text:
+        notes_text = ''
+
+    pdf.set_font('Helvetica', '', 7)
+    left_w = 132
+    right_w = 58
+    footer_h = 45
+
+    pdf.rect(10, footer_top, left_w, footer_h)
+    pdf.rect(10 + left_w, footer_top, right_w, footer_h)
+
+    pdf.set_xy(12, footer_top + 2)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.cell(left_w - 4, 4, 'IMPORTANT NOTE', ln=True)
+    pdf.set_font('Helvetica', '', 6.5)
+    if notes_text:
+        pdf.set_x(12)
+        pdf.multi_cell(left_w - 4, 3.2, notes_text)
+
+    pdf.set_font('Helvetica', 'B', 8)
+    pdf.set_xy(10 + left_w, footer_top)
+    pdf.cell(right_w, 9, '', border=0, ln=True)
+
+    pdf.set_xy(10 + left_w, footer_top)
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.cell(26, 9, 'Total', border=1)
+    pdf.set_font('Helvetica', '', 9)
+    pdf.cell(right_w - 26, 9, _pdf_money(invoice.total), border=1, ln=True, align='R')
+
+    pdf.set_x(10 + left_w)
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.cell(right_w, 6, 'TOTAL (WORD)', border=1, ln=True, align='L')
+    pdf.set_x(10 + left_w)
+    pdf.set_font('Helvetica', '', 6.5)
+    pdf.multi_cell(right_w, 4, _pdf_amount_in_words(invoice.total), border=1)
+
+    sig_y = footer_top + footer_h - 12
+    pdf.set_xy(10 + left_w, sig_y)
+    pdf.set_font('Helvetica', '', 6.5)
+    pdf.cell(right_w, 6, '', border=1, ln=True)
+    pdf.set_x(10 + left_w)
+    pdf.set_font('Helvetica', '', 6)
+    pdf.cell(right_w, 4, 'AUTHORIZED SIGNATURE', border=0, ln=True, align='C')
 
     out = pdf.output(dest='S')
     if isinstance(out, str):
