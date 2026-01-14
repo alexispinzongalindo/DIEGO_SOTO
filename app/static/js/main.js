@@ -357,6 +357,7 @@
     const transcriptEl = document.getElementById('voiceTranscript');
     const responseEl = document.getElementById('voiceResponse');
     const langEl = document.getElementById('voiceLang');
+    const dictationToggleEl = document.getElementById('voiceDictationToggle');
     if (!startBtn || !statusEl || !transcriptEl || !responseEl) return;
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -391,6 +392,73 @@
     recognition.lang = resolveLang();
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
+
+    let lastDictationTarget = null;
+    function isValidDictationTarget(el) {
+      if (!el) return false;
+      if (el === transcriptEl || el === responseEl) return false;
+      const tag = (el.tagName || '').toLowerCase();
+      if (tag === 'textarea') return !el.readOnly && !el.disabled;
+      if (tag === 'input') {
+        const type = (el.type || '').toLowerCase();
+        if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'reset' || type === 'checkbox' || type === 'radio' || type === 'file') {
+          return false;
+        }
+        return !el.readOnly && !el.disabled;
+      }
+      if (el.isContentEditable) return true;
+      return false;
+    }
+
+    function insertTextIntoTarget(target, text) {
+      if (!isValidDictationTarget(target)) return false;
+      const t = (text || '').trim();
+      if (!t) return false;
+
+      try {
+        if (target.isContentEditable) {
+          target.focus();
+          document.execCommand('insertText', false, t + ' ');
+          return true;
+        }
+
+        const start = typeof target.selectionStart === 'number' ? target.selectionStart : (target.value || '').length;
+        const end = typeof target.selectionEnd === 'number' ? target.selectionEnd : (target.value || '').length;
+        const current = target.value || '';
+        const insert = t + ' ';
+        target.value = current.slice(0, start) + insert + current.slice(end);
+        const nextPos = start + insert.length;
+        if (typeof target.setSelectionRange === 'function') {
+          target.setSelectionRange(nextPos, nextPos);
+        }
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function isDictationOn() {
+      return !!(dictationToggleEl && dictationToggleEl.checked);
+    }
+
+    if (dictationToggleEl) {
+      const saved = window.localStorage ? window.localStorage.getItem('voice_dictation') : null;
+      if (saved === '1') dictationToggleEl.checked = true;
+      dictationToggleEl.addEventListener('change', () => {
+        if (window.localStorage) {
+          window.localStorage.setItem('voice_dictation', dictationToggleEl.checked ? '1' : '0');
+        }
+      });
+    }
+
+    document.addEventListener('focusin', (e) => {
+      const target = e.target;
+      if (isValidDictationTarget(target)) {
+        lastDictationTarget = target;
+      }
+    });
 
     let busy = false;
     let collecting = false;
@@ -541,6 +609,16 @@
     recognition.onresult = async (event) => {
       const text = event.results[0][0].transcript;
       transcriptEl.value = text;
+
+      if (isDictationOn()) {
+        const ok = insertTextIntoTarget(lastDictationTarget, text);
+        if (ok) {
+          statusEl.textContent = 'Inserted.';
+        } else {
+          statusEl.textContent = 'Tap a field first, then try again.';
+        }
+        return;
+      }
 
       if (awaitingConfirm) {
         if (isYes(text)) {
