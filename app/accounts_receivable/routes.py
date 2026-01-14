@@ -448,19 +448,23 @@ def _build_quote_pdf(quote, items):
             pdf.add_page()
             y = 20
 
+    prev_apb = pdf.auto_page_break
+    prev_bm = pdf.b_margin
+    pdf.set_auto_page_break(auto=False)
+
     # Totals box
     box_h = 10
     pdf.set_font('Helvetica', 'B', 9)
-    pdf.rect(140, 245, 60, box_h)
-    pdf.set_xy(142, 247)
+    pdf.rect(140, 232, 60, box_h)
+    pdf.set_xy(142, 234)
     pdf.cell(26, 6, 'TOTAL', align='L')
     pdf.cell(32, 6, _pdf_money(quote.total), align='R')
 
     # Signature line (matches sample position)
     pdf.set_font('Helvetica', '', 7)
-    pdf.set_xy(10, 245)
+    pdf.set_xy(10, 232)
     pdf.cell(90, 5, 'AUTHORIZED SIGNATURE', ln=True)
-    pdf.line(10, 252, 110, 252)
+    pdf.line(10, 239, 110, 239)
 
     # Printed notes in blue (sample block)
     printed = (getattr(quote, 'printed_notes', None) or '').strip()
@@ -476,10 +480,12 @@ def _build_quote_pdf(quote, items):
         printed = (os.environ.get('QUOTE_IMPORTANT_NOTE') or '').strip()
     if printed:
         pdf.set_text_color(0, 0, 160)
-        pdf.set_font('Helvetica', '', 6)
-        pdf.set_xy(10, 257)
-        pdf.multi_cell(190, 3.2, printed)
+        pdf.set_font('Helvetica', '', 5.6)
+        pdf.set_xy(10, 242)
+        pdf.multi_cell(190, 3.0, printed)
         pdf.set_text_color(0, 0, 0)
+
+    pdf.set_auto_page_break(auto=prev_apb, margin=prev_bm)
 
     out = pdf.output(dest='S')
     if isinstance(out, str):
