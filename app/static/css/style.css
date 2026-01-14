@@ -22,6 +22,21 @@ body { background-color: #f8f9fa; }
     drop-shadow(0 0 22px rgba(0, 180, 255, 0.45));
 }
 
+@media (max-width: 575.98px) {
+  .app-navbar {
+    min-height: 76px;
+  }
+
+  .app-navbar .navbar-brand {
+    padding-top: 0.15rem;
+    padding-bottom: 0.15rem;
+  }
+
+  .app-navbar .navbar-logo {
+    height: 64px;
+  }
+}
+
 @media (min-width: 992px) {
   .app-navbar .main-nav {
     flex: 1 1 auto;
