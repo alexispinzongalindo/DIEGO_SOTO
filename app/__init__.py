@@ -6,6 +6,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from sqlalchemy import inspect
+from sqlalchemy import text
 from config import Config
 from decimal import Decimal
 
@@ -161,6 +162,17 @@ def create_app(config_class=Config):
         database_uri = (app.config.get('SQLALCHEMY_DATABASE_URI') or '').strip().lower()
         if database_uri.startswith('sqlite:'):
             db.create_all()
+        try:
+            if db.engine.dialect.name == 'postgresql':
+                inspector = inspect(db.engine)
+                if inspector.has_table('vendor_payment'):
+                    cols = [c.get('name') for c in inspector.get_columns('vendor_payment')]
+                    if 'check_pdf_filename' not in cols:
+                        db.session.execute(text('ALTER TABLE vendor_payment ADD COLUMN check_pdf_filename VARCHAR(255)'))
+                        db.session.execute(text('CREATE INDEX IF NOT EXISTS ix_vendor_payment_check_pdf_filename ON vendor_payment (check_pdf_filename)'))
+                        db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     return app
 
