@@ -1,7 +1,13 @@
 from datetime import date
+from decimal import Decimal
+import os
+import uuid
+from pathlib import Path
 
-from flask import render_template, redirect, url_for, flash, request
+from flask import render_template, redirect, url_for, flash, request, current_app, send_from_directory
 from flask_login import login_required
+
+from fpdf import FPDF
 
 from app import db
 from app.accounts_payable import bp
@@ -13,6 +19,138 @@ def _digits_only(value: str) -> str:
     raw = (value or '').strip()
     digits = ''.join([c for c in raw if c.isdigit()])
     return digits
+
+
+def _ensure_checks_folder() -> str:
+    folder = os.path.join(current_app.static_folder, 'uploads', 'checks')
+    Path(folder).mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def _money_to_words(amount: Decimal) -> str:
+    # Demo-only: keep simple for now.
+    try:
+        n = Decimal(str(amount or 0)).quantize(Decimal('0.01'))
+    except Exception:
+        n = Decimal('0.00')
+    return f"{n:,.2f} DOLLARS"
+
+
+def _generate_dummy_voucher_check_pdf(*, vendor: Vendor, check_number: str, check_date: date, memo: str, applied_rows):
+    pdf = FPDF(orientation='P', unit='mm', format='Letter')
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
+
+    pdf.set_font('Helvetica', size=12)
+
+    # Header area (dummy)
+    pdf.set_xy(10, 10)
+    pdf.set_font('Helvetica', style='B', size=14)
+    pdf.cell(0, 6, 'DUMMY CHECK (DEMO ONLY)', ln=1)
+    pdf.set_font('Helvetica', size=10)
+    pdf.cell(0, 5, 'Not valid for deposit. No bank/MICR information printed.', ln=1)
+
+    # Check box layout (approximate; intended for demo printouts)
+    y0 = 28
+    pdf.set_draw_color(0, 0, 0)
+    pdf.rect(10, y0, 195, 55)
+
+    pdf.set_font('Helvetica', size=11)
+    pdf.set_xy(12, y0 + 4)
+    pdf.cell(25, 6, 'DATE:')
+    pdf.set_xy(35, y0 + 4)
+    pdf.cell(40, 6, check_date.strftime('%Y-%m-%d') if check_date else '')
+
+    pdf.set_xy(140, y0 + 4)
+    pdf.cell(30, 6, 'CHECK #')
+    pdf.set_xy(165, y0 + 4)
+    pdf.cell(35, 6, (check_number or '').strip())
+
+    pdf.set_xy(12, y0 + 16)
+    pdf.cell(50, 6, 'PAY TO THE ORDER OF:')
+    pdf.set_xy(58, y0 + 16)
+    pdf.set_font('Helvetica', style='B', size=12)
+    pdf.cell(120, 6, (vendor.name or '').strip())
+    pdf.set_font('Helvetica', size=11)
+
+    total = sum((Decimal(str(r.get('amount') or 0)) for r in applied_rows), Decimal('0.00'))
+    pdf.set_xy(140, y0 + 16)
+    pdf.cell(20, 6, '$')
+    pdf.set_xy(150, y0 + 16)
+    pdf.set_font('Helvetica', style='B', size=12)
+    pdf.cell(50, 6, f"{total:,.2f}")
+    pdf.set_font('Helvetica', size=11)
+
+    pdf.set_xy(12, y0 + 28)
+    pdf.cell(25, 6, 'AMOUNT:')
+    pdf.set_xy(35, y0 + 28)
+    pdf.cell(160, 6, _money_to_words(total))
+
+    if memo:
+        pdf.set_xy(12, y0 + 40)
+        pdf.cell(25, 6, 'MEMO:')
+        pdf.set_xy(35, y0 + 40)
+        pdf.cell(160, 6, memo)
+
+    # Stub section
+    y1 = 90
+    pdf.set_font('Helvetica', style='B', size=12)
+    pdf.set_xy(10, y1)
+    pdf.cell(0, 6, 'VOUCHER STUB (DEMO)', ln=1)
+
+    pdf.set_font('Helvetica', size=10)
+    pdf.set_xy(10, y1 + 8)
+    pdf.cell(0, 5, f"Vendor: {(vendor.name or '').strip()}    Check #: {(check_number or '').strip()}    Date: {check_date.strftime('%Y-%m-%d') if check_date else ''}", ln=1)
+
+    # Table header
+    ytbl = y1 + 18
+    pdf.set_font('Helvetica', style='B', size=10)
+    pdf.set_xy(10, ytbl)
+    pdf.cell(45, 6, 'Bill #', border=1)
+    pdf.cell(35, 6, 'Bill Date', border=1)
+    pdf.cell(60, 6, 'Notes', border=1)
+    pdf.cell(35, 6, 'Paid', border=1, ln=1, align='R')
+
+    pdf.set_font('Helvetica', size=10)
+    for row in applied_rows[:14]:
+        bill_number = (row.get('bill_number') or '').strip()
+        bill_date = row.get('bill_date')
+        bill_date_str = bill_date.strftime('%Y-%m-%d') if bill_date else ''
+        notes = (row.get('notes') or '').strip()
+        amt = Decimal(str(row.get('amount') or 0)).quantize(Decimal('0.01'))
+
+        pdf.set_x(10)
+        pdf.cell(45, 6, bill_number, border=1)
+        pdf.cell(35, 6, bill_date_str, border=1)
+        pdf.cell(60, 6, notes[:28], border=1)
+        pdf.cell(35, 6, f"{amt:,.2f}", border=1, ln=1, align='R')
+
+    pdf.set_font('Helvetica', style='B', size=11)
+    pdf.set_x(10)
+    pdf.cell(140, 7, 'TOTAL', border=1)
+    pdf.cell(35, 7, f"{total:,.2f}", border=1, ln=1, align='R')
+
+    folder = _ensure_checks_folder()
+    filename = f"check_{uuid.uuid4().hex}.pdf"
+    abs_path = os.path.join(folder, filename)
+    pdf.output(abs_path)
+    return filename
+
+
+def _update_bill_status(bill: Bill) -> None:
+    if not bill:
+        return
+    try:
+        if bill.balance <= 0.01:
+            bill.status = 'paid'
+        elif bill.paid_amount > 0:
+            bill.status = 'partial'
+        elif bill.is_overdue:
+            bill.status = 'overdue'
+        else:
+            bill.status = 'open'
+    except Exception:
+        bill.status = bill.status or 'open'
 
 
 @bp.route('/bills')
@@ -28,6 +166,120 @@ def bills():
 def vendors():
     vendor_list = Vendor.query.order_by(Vendor.name.asc()).all()
     return render_template('ap/vendors.html', title='Vendors', vendors=vendor_list)
+
+
+@bp.route('/pay-bills', methods=['GET', 'POST'])
+@login_required
+def pay_bills():
+    vendors = Vendor.query.order_by(Vendor.name.asc()).all()
+    if not vendors:
+        flash('Create a vendor before paying bills.', 'warning')
+        return redirect(url_for('ap.create_vendor'))
+
+    vendor_id = request.args.get('vendor_id', type=int) or request.form.get('vendor_id', type=int)
+    vendor = Vendor.query.get(vendor_id) if vendor_id else None
+
+    bill_list = []
+    if vendor:
+        bill_list = (
+            Bill.query
+            .filter(Bill.vendor_id == vendor.id)
+            .order_by(Bill.date.desc())
+            .all()
+        )
+        bill_list = [b for b in bill_list if (b.status != 'paid' and (b.balance or 0) > 0.01)]
+
+    if request.method == 'POST':
+        if not vendor:
+            flash('Select a vendor.', 'danger')
+            return redirect(url_for('ap.pay_bills'))
+
+        check_number = (request.form.get('check_number') or '').strip()
+        payment_date = request.form.get('date')
+        memo = (request.form.get('memo') or '').strip()
+
+        try:
+            pay_date = date.fromisoformat(payment_date) if payment_date else date.today()
+        except Exception:
+            pay_date = date.today()
+
+        applied_rows = []
+        payments_to_create = []
+        for b in bill_list:
+            if request.form.get(f'select_bill_{b.id}') != 'on':
+                continue
+            raw_amt = (request.form.get(f'amount_{b.id}') or '').strip()
+            if not raw_amt:
+                continue
+            try:
+                amt = Decimal(raw_amt)
+            except Exception:
+                continue
+            if amt <= 0:
+                continue
+            if amt > Decimal(str(b.balance or 0)) + Decimal('0.01'):
+                flash(f"Payment for bill {b.number} exceeds remaining balance.", 'danger')
+                return redirect(url_for('ap.pay_bills', vendor_id=vendor.id))
+
+            payments_to_create.append(
+                VendorPayment(
+                    date=pay_date,
+                    vendor_id=vendor.id,
+                    bill_id=b.id,
+                    amount=amt,
+                    payment_method='Check',
+                    reference=check_number,
+                    notes=memo,
+                )
+            )
+            applied_rows.append({
+                'bill_number': b.number,
+                'bill_date': b.date,
+                'notes': (b.notes or ''),
+                'amount': amt,
+            })
+
+        if not payments_to_create:
+            flash('Select at least one bill and enter an amount to pay.', 'warning')
+            return redirect(url_for('ap.pay_bills', vendor_id=vendor.id))
+
+        pdf_filename = _generate_dummy_voucher_check_pdf(
+            vendor=vendor,
+            check_number=check_number,
+            check_date=pay_date,
+            memo=memo,
+            applied_rows=applied_rows,
+        )
+
+        for p in payments_to_create:
+            p.check_pdf_filename = pdf_filename
+            db.session.add(p)
+        db.session.commit()
+
+        for p in payments_to_create:
+            bill = Bill.query.get(p.bill_id)
+            if bill:
+                _update_bill_status(bill)
+        db.session.commit()
+
+        flash('Check created (demo) and payments recorded.', 'success')
+        return redirect(url_for('ap.view_check_pdf', filename=pdf_filename))
+
+    return render_template(
+        'ap/pay_bills.html',
+        title='Pay Bills',
+        vendors=vendors,
+        vendor=vendor,
+        bills=bill_list,
+        today=date.today(),
+    )
+
+
+@bp.route('/checks/<path:filename>')
+@login_required
+def view_check_pdf(filename):
+    folder = _ensure_checks_folder()
+    return send_from_directory(folder, filename, mimetype='application/pdf')
 
 
 @bp.route('/vendors/create', methods=['GET', 'POST'])

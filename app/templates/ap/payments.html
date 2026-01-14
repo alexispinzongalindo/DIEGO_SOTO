@@ -21,6 +21,7 @@
                         <th class="text-end">Amount</th>
                         <th>Method</th>
                         <th>Reference</th>
+                        <th>Check PDF</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -38,10 +39,17 @@
                         <td class="text-end">${{ (payment.amount or 0)|money }}</td>
                         <td>{{ payment.payment_method or '' }}</td>
                         <td>{{ payment.reference or '' }}</td>
+                        <td>
+                            {% if payment.check_pdf_filename %}
+                                <a class="text-decoration-none" href="{{ url_for('ap.view_check_pdf', filename=payment.check_pdf_filename) }}" target="_blank">View</a>
+                            {% else %}
+
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-4">
+                        <td colspan="7" class="text-center py-4">
                             <div class="text-muted">No payments found</div>
                             <a class="btn btn-sm btn-primary mt-2" href="{{ url_for('ap.record_payment') }}">Record your first payment</a>
                         </td>

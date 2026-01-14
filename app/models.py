@@ -260,6 +260,7 @@ class VendorPayment(db.Model):
     payment_method = db.Column(db.String(50))
     reference = db.Column(db.String(50))
     notes = db.Column(db.Text)
+    check_pdf_filename = db.Column(db.String(255), index=True)
 
 
 class Meeting(db.Model):

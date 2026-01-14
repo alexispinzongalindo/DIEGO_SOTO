@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Pay Bills{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h3 class="mb-0">Pay Bills</h3>
+        <div class="text-muted">Create a demo voucher check PDF and record payments</div>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('ap.payments') }}">Back</a>
+</div>
+
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('ap.pay_bills') }}" class="row g-2 align-items-end">
+            <div class="col-md-8">
+                <label class="form-label">Vendor</label>
+                <select class="form-select" name="vendor_id" onchange="this.form.submit()">
+                    <option value="">-- Select vendor --</option>
+                    {% for v in vendors %}
+                        <option value="{{ v.id }}" {% if vendor and vendor.id == v.id %}selected{% endif %}>{{ v.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-outline-primary w-100">Load Bills</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if vendor %}
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">Open Bills for {{ vendor.name }}</div>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('ap.view_vendor', id=vendor.id) }}">View Vendor</a>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('ap.pay_bills', vendor_id=vendor.id) }}">
+            <input type="hidden" name="vendor_id" value="{{ vendor.id }}">
+
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label">Payment Date</label>
+                    <input class="form-control" type="date" name="date" value="{{ (today.strftime('%Y-%m-%d') if today else '') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Check #</label>
+                    <input class="form-control" type="text" name="check_number" placeholder="Demo #">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Memo</label>
+                    <input class="form-control" type="text" name="memo" placeholder="Optional memo">
+                </div>
+            </div>
+
+            <div class="table-responsive mb-3">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 40px;"></th>
+                            <th>Bill #</th>
+                            <th>Date</th>
+                            <th>Due</th>
+                            <th class="text-end">Balance</th>
+                            <th style="width: 160px;" class="text-end">Pay Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                        <tr>
+                            <td>
+                                <input class="form-check-input" type="checkbox" name="select_bill_{{ bill.id }}" id="select_bill_{{ bill.id }}">
+                            </td>
+                            <td>
+                                <a class="text-decoration-none" href="{{ url_for('ap.view_bill', id=bill.id) }}">{{ bill.number }}</a>
+                            </td>
+                            <td>{{ bill.date.strftime('%Y-%m-%d') if bill.date else '' }}</td>
+                            <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</td>
+                            <td class="text-end">${{ (bill.balance or 0)|money }}</td>
+                            <td class="text-end">
+                                <input class="form-control" type="number" step="0.01" min="0" name="amount_{{ bill.id }}" value="{{ (bill.balance or 0)|money }}">
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4">
+                                <div class="text-muted">No open bills for this vendor</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Generate Demo Voucher Check PDF</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('ap.pay_bills', vendor_id=vendor.id) }}">Reset</a>
+            </div>
+        </form>
+
+        <div class="alert alert-warning mt-3 mb-0" role="alert">
+            This generates a <strong>dummy</strong> voucher check PDF (no bank/MICR) for demo/printing.
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
