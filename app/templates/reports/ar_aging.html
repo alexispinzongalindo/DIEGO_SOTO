@@ -14,7 +14,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">Current</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(buckets.current) }}</div>
+                <div class="fw-semibold">${{ buckets.current|money }}</div>
             </div>
         </div>
     </div>
@@ -22,7 +22,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">1-30</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(buckets['1_30']) }}</div>
+                <div class="fw-semibold">${{ buckets['1_30']|money }}</div>
             </div>
         </div>
     </div>
@@ -30,7 +30,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">31-60</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(buckets['31_60']) }}</div>
+                <div class="fw-semibold">${{ buckets['31_60']|money }}</div>
             </div>
         </div>
     </div>
@@ -38,7 +38,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">61-90</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(buckets['61_90']) }}</div>
+                <div class="fw-semibold">${{ buckets['61_90']|money }}</div>
             </div>
         </div>
     </div>
@@ -46,7 +46,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">90+</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(buckets['90_plus']) }}</div>
+                <div class="fw-semibold">${{ buckets['90_plus']|money }}</div>
             </div>
         </div>
     </div>
@@ -54,7 +54,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">Total</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(buckets.total) }}</div>
+                <div class="fw-semibold">${{ buckets.total|money }}</div>
             </div>
         </div>
     </div>
@@ -82,12 +82,12 @@
                     {% for row in customer_rows %}
                     <tr>
                         <td>{{ row.customer.name if row.customer else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(row.current) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(row['1_30']) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(row['31_60']) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(row['61_90']) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(row['90_plus']) }}</td>
-                        <td class="text-end fw-semibold">${{ "%0.2f"|format(row.total) }}</td>
+                        <td class="text-end">${{ row.current|money }}</td>
+                        <td class="text-end">${{ row['1_30']|money }}</td>
+                        <td class="text-end">${{ row['31_60']|money }}</td>
+                        <td class="text-end">${{ row['61_90']|money }}</td>
+                        <td class="text-end">${{ row['90_plus']|money }}</td>
+                        <td class="text-end fw-semibold">${{ row.total|money }}</td>
                     </tr>
                     {% else %}
                     <tr>

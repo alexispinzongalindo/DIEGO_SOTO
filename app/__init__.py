@@ -6,6 +6,7 @@ from flask_mail import Mail
 from flask_migrate import Migrate
 from sqlalchemy import inspect
 from config import Config
+from decimal import Decimal
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -16,6 +17,28 @@ migrate = Migrate()
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    @app.template_filter('money')
+    def money_filter(value, places=2):
+        try:
+            n = Decimal(str(value or 0))
+            p = int(places)
+            if p < 0:
+                p = 0
+            return f"{n:,.{p}f}"
+        except Exception:
+            return "0.00" if int(places or 0) == 2 else "0"
+
+    @app.template_filter('num')
+    def num_filter(value, places=0):
+        try:
+            n = Decimal(str(value or 0))
+            p = int(places)
+            if p < 0:
+                p = 0
+            return f"{n:,.{p}f}"
+        except Exception:
+            return "0"
 
     db.init_app(app)
     login_manager.init_app(app)

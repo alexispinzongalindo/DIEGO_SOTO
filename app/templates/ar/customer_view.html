@@ -4,7 +4,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="mb-0">{{ customer.name }}</h3>
-        <div class="text-muted">Balance: ${{ "%0.2f"|format(customer.balance or 0) }}</div>
+        <div class="text-muted">Balance: ${{ (customer.balance or 0)|money }}</div>
     </div>
     <div class="d-flex gap-2">
         <a class="btn btn-outline-secondary" href="{{ url_for('ar.customers') }}">Back</a>
@@ -23,7 +23,7 @@
                 <div><strong>Phone:</strong> {{ customer.phone or '' }}</div>
                 <div><strong>Tax ID:</strong> {{ customer.tax_id or '' }}</div>
                 <div class="mt-2"><strong>Address:</strong><br>{{ customer.address or '' }}</div>
-                <div class="mt-2"><strong>Credit Limit:</strong> ${{ "%0.2f"|format(customer.credit_limit or 0) }}</div>
+                <div class="mt-2"><strong>Credit Limit:</strong> ${{ (customer.credit_limit or 0)|money }}</div>
             </div>
         </div>
     </div>
@@ -51,9 +51,9 @@
                             <td><a href="{{ url_for('ar.invoice_view', invoice_id=inv.id) }}">{{ inv.number }}</a></td>
                             <td>{{ inv.date.isoformat() if inv.date else '' }}</td>
                             <td class="{% if inv.is_overdue %}text-danger fw-bold{% endif %}">{{ inv.due_date.isoformat() if inv.due_date else '' }}</td>
-                            <td class="text-end">${{ "%0.2f"|format(inv.total or 0) }}</td>
-                            <td class="text-end">${{ "%0.2f"|format(inv.paid_amount or 0) }}</td>
-                            <td class="text-end">${{ "%0.2f"|format(inv.balance or 0) }}</td>
+                            <td class="text-end">${{ (inv.total or 0)|money }}</td>
+                            <td class="text-end">${{ (inv.paid_amount or 0)|money }}</td>
+                            <td class="text-end">${{ (inv.balance or 0)|money }}</td>
                             <td><span class="badge bg-secondary">{{ inv.status }}</span></td>
                             <td class="text-end"><a class="btn btn-sm btn-outline-secondary" target="_blank" href="{{ url_for('ar.invoice_pdf', invoice_id=inv.id) }}">PDF</a></td>
                         </tr>

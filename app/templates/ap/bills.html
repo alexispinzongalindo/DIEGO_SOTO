@@ -37,8 +37,8 @@
                         <td>{{ bill.vendor.name if bill.vendor else '' }}</td>
                         <td>{{ bill.date.strftime('%Y-%m-%d') if bill.date else '' }}</td>
                         <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(bill.total or 0) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(bill.balance or 0) }}</td>
+                        <td class="text-end">${{ (bill.total or 0)|money }}</td>
+                        <td class="text-end">${{ (bill.balance or 0)|money }}</td>
                         <td>
                             {% if bill.status == 'paid' %}
                                 <span class="badge bg-success">Paid</span>

@@ -49,8 +49,8 @@
                                 <td>{{ bill.number }}</td>
                                 <td>{{ bill.date.strftime('%Y-%m-%d') if bill.date else '' }}</td>
                                 <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(bill.total or 0) }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(bill.balance or 0) }}</td>
+                                <td class="text-end">${{ (bill.total or 0)|money }}</td>
+                                <td class="text-end">${{ (bill.balance or 0)|money }}</td>
                                 <td>
                                     {% if bill.status == 'paid' %}
                                         <span class="badge bg-success">Paid</span>
@@ -97,7 +97,7 @@
                     <tr>
                         <td>{{ payment.date.strftime('%Y-%m-%d') if payment.date else '' }}</td>
                         <td>{{ payment.bill.number if payment.bill else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td class="text-end">${{ (payment.amount or 0)|money }}</td>
                         <td>{{ payment.payment_method or '' }}</td>
                         <td>{{ payment.reference or '' }}</td>
                     </tr>

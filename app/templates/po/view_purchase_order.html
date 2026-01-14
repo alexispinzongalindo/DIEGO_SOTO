@@ -48,9 +48,9 @@
                             {% for item in items %}
                             <tr>
                                 <td>{{ item.description }}</td>
-                                <td class="text-end">{{ "%0.2f"|format(item.quantity or 0) }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(item.unit_price or 0) }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(item.amount or 0) }}</td>
+                                <td class="text-end">{{ (item.quantity or 0)|num(places=2) }}</td>
+                                <td class="text-end">${{ (item.unit_price or 0)|money }}</td>
+                                <td class="text-end">${{ (item.amount or 0)|money }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -58,9 +58,9 @@
                 </div>
             </div>
             <div class="card-footer text-end">
-                <div>Subtotal: ${{ "%0.2f"|format(purchase_order.subtotal or 0) }}</div>
-                <div>Tax: ${{ "%0.2f"|format(purchase_order.tax or 0) }}</div>
-                <div class="fw-bold">Total: ${{ "%0.2f"|format(purchase_order.total or 0) }}</div>
+                <div>Subtotal: ${{ (purchase_order.subtotal or 0)|money }}</div>
+                <div>Tax: ${{ (purchase_order.tax or 0)|money }}</div>
+                <div class="fw-bold">Total: ${{ (purchase_order.total or 0)|money }}</div>
             </div>
         </div>
     </div>

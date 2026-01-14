@@ -40,7 +40,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">Total</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(invoice.total or 0) }}</div>
+                <div class="fw-semibold">${{ (invoice.total or 0)|money }}</div>
             </div>
         </div>
     </div>
@@ -48,7 +48,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">Balance</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(invoice.balance or 0) }}</div>
+                <div class="fw-semibold">${{ (invoice.balance or 0)|money }}</div>
             </div>
         </div>
     </div>
@@ -124,8 +124,8 @@
                         <td>{{ item.description or (item.product.description if item.product else '') }}</td>
                         <td class="text-end">{{ item.quantity or '' }}</td>
                         <td>{{ item.unit or (item.product.unit if item.product else '') or '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(item.unit_price or 0) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(item.amount or 0) }}</td>
+                        <td class="text-end">${{ (item.unit_price or 0)|money }}</td>
+                        <td class="text-end">${{ (item.amount or 0)|money }}</td>
                     </tr>
                     {% else %}
                     <tr>
@@ -159,13 +159,13 @@
         <div class="row">
             <div class="col-md-6">
                 <div class="mb-2"><span class="text-muted">Terms:</span> {{ invoice.terms or '' }}</div>
-                <div class="mb-2"><span class="text-muted">Paid:</span> ${{ "%0.2f"|format(invoice.paid_amount or 0) }}</div>
-                <div class="mb-2"><span class="text-muted">Balance:</span> ${{ "%0.2f"|format(invoice.balance or 0) }}</div>
+                <div class="mb-2"><span class="text-muted">Paid:</span> ${{ (invoice.paid_amount or 0)|money }}</div>
+                <div class="mb-2"><span class="text-muted">Balance:</span> ${{ (invoice.balance or 0)|money }}</div>
             </div>
             <div class="col-md-6">
-                <div class="mb-2"><span class="text-muted">Subtotal:</span> ${{ "%0.2f"|format(invoice.subtotal or 0) }}</div>
-                <div class="mb-2"><span class="text-muted">Tax:</span> ${{ "%0.2f"|format(invoice.tax or 0) }}</div>
-                <div class="mb-2"><span class="text-muted">Total:</span> ${{ "%0.2f"|format(invoice.total or 0) }}</div>
+                <div class="mb-2"><span class="text-muted">Subtotal:</span> ${{ (invoice.subtotal or 0)|money }}</div>
+                <div class="mb-2"><span class="text-muted">Tax:</span> ${{ (invoice.tax or 0)|money }}</div>
+                <div class="mb-2"><span class="text-muted">Total:</span> ${{ (invoice.total or 0)|money }}</div>
             </div>
         </div>
         {% if invoice.notes %}
@@ -197,7 +197,7 @@
                     {% for payment in payments %}
                     <tr>
                         <td>{{ payment.date.strftime('%Y-%m-%d') if payment.date else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td class="text-end">${{ (payment.amount or 0)|money }}</td>
                         <td>{{ payment.payment_method or '' }}</td>
                         <td>{{ payment.reference or '' }}</td>
                     </tr>

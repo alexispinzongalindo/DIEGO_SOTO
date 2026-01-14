@@ -35,7 +35,7 @@
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td class="text-end">${{ (payment.amount or 0)|money }}</td>
                         <td>{{ payment.payment_method or '' }}</td>
                         <td>{{ payment.reference or '' }}</td>
                     </tr>

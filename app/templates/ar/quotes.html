@@ -37,7 +37,7 @@
                         <td>{{ quote.date.strftime('%Y-%m-%d') if quote.date else '' }}</td>
                         <td>{{ quote.due_date.strftime('%Y-%m-%d') if quote.due_date else '' }}</td>
                         <td>{{ quote.valid_until.strftime('%Y-%m-%d') if quote.valid_until else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(quote.total or 0) }}</td>
+                        <td class="text-end">${{ (quote.total or 0)|money }}</td>
                         <td>
                             {% if quote.status == 'invoiced' %}
                                 <span class="badge bg-success">Invoiced</span>

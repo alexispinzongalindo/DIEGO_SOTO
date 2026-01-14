@@ -25,7 +25,7 @@
                     <tr>
                         <td>{{ item.code or '' }}</td>
                         <td>{{ item.description or '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(item.price or 0) }}</td>
+                        <td class="text-end">${{ (item.price or 0)|money }}</td>
                     </tr>
                     {% else %}
                     <tr>

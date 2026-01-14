@@ -20,7 +20,7 @@
     {% endif %}
     <h2 style="margin: 0 0 10px 0;">Invoice {{ invoice.number }}</h2>
     <p style="margin: 0 0 10px 0;">Customer: <strong>{{ invoice.customer.name if invoice.customer else '' }}</strong></p>
-    <p style="margin: 0 0 10px 0;">Total: <strong>${{ "%0.2f"|format(invoice.total or 0) }}</strong></p>
+    <p style="margin: 0 0 10px 0;">Total: <strong>${{ (invoice.total or 0)|money }}</strong></p>
 
     {% if message %}
     <div style="margin: 20px 0; padding: 12px; background: #f8f9fa; border: 1px solid #eee;">

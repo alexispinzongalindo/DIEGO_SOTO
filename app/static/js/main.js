@@ -95,7 +95,16 @@
 
   function formatMoney(amount) {
     const n = Number.isFinite(amount) ? amount : 0;
-    return `$${n.toFixed(2)}`;
+    try {
+      const fmt = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+        useGrouping: true,
+      });
+      return `$${fmt.format(n)}`;
+    } catch (e) {
+      return `$${n.toFixed(2)}`;
+    }
   }
 
   function initLineItems() {

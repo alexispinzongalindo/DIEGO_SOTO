@@ -41,7 +41,7 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">Credit Limit</div>
-                <div class="fw-semibold">${{ "%0.2f"|format(customer.credit_limit or 0) }}</div>
+                <div class="fw-semibold">${{ (customer.credit_limit or 0)|money }}</div>
             </div>
         </div>
     </div>
@@ -106,8 +106,8 @@
                         <td><a class="text-decoration-none" href="{{ url_for('ar.view_invoice', id=invoice.id) }}">{{ invoice.number }}</a></td>
                         <td>{{ invoice.date.strftime('%Y-%m-%d') if invoice.date else '' }}</td>
                         <td>{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(invoice.total or 0) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(invoice.balance or 0) }}</td>
+                        <td class="text-end">${{ (invoice.total or 0)|money }}</td>
+                        <td class="text-end">${{ (invoice.balance or 0)|money }}</td>
                         <td>
                             {% if invoice.status == 'paid' %}
                                 <span class="badge bg-success">Paid</span>
@@ -161,7 +161,7 @@
                                 <span class="text-muted">—</span>
                             {% endif %}
                         </td>
-                        <td class="text-end">${{ "%0.2f"|format(payment.amount or 0) }}</td>
+                        <td class="text-end">${{ (payment.amount or 0)|money }}</td>
                         <td>{{ payment.payment_method or '' }}</td>
                         <td>{{ payment.reference or '' }}</td>
                     </tr>

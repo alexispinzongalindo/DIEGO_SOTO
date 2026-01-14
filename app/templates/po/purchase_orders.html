@@ -37,7 +37,7 @@
                             {% if po.vendor %}{{ po.vendor.name }}{% elif po.customer %}{{ po.customer.name }}{% endif %}
                         </td>
                         <td>{{ po.date.strftime('%Y-%m-%d') if po.date else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(po.total or 0) }}</td>
+                        <td class="text-end">${{ (po.total or 0)|money }}</td>
                         <td>
                             {% if po.status == 'sent' %}
                                 <span class="badge bg-info text-dark">Sent</span>

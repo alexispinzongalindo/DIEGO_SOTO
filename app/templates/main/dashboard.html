@@ -10,7 +10,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="card-title mb-1">Total Receivables</h6>
-                        <h2 class="mb-0">${{ "%0.2f"|format(total_receivables) }}</h2>
+                        <h2 class="mb-0">${{ total_receivables|money }}</h2>
                     </div>
                     <i class="bi bi-currency-dollar fs-1"></i>
                 </div>
@@ -32,7 +32,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="card-title mb-1">Total Payables</h6>
-                        <h2 class="mb-0">${{ "%0.2f"|format(total_payables) }}</h2>
+                        <h2 class="mb-0">${{ total_payables|money }}</h2>
                     </div>
                     <i class="bi bi-credit-card fs-1"></i>
                 </div>
@@ -127,7 +127,7 @@
                                 <td>{{ invoice.customer.name|truncate(20) }}</td>
                                 <td>{{ invoice.date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(invoice.total) }}</td>
+                                <td class="text-end">${{ invoice.total|money }}</td>
                                 <td>
                                     {% if invoice.status == 'paid' %}
                                         <span class="badge bg-success">Paid</span>
@@ -176,7 +176,7 @@
                                 <td>{{ quote.number }}</td>
                                 <td>{{ quote.customer.name|truncate(20) if quote.customer else '' }}</td>
                                 <td>{{ quote.date.strftime('%Y-%m-%d') if quote.date else '' }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(quote.total or 0) }}</td>
+                                <td class="text-end">${{ (quote.total or 0)|money }}</td>
                                 <td>
                                     {% if quote.status == 'invoiced' %}
                                         <span class="badge bg-success">Invoiced</span>
@@ -231,7 +231,7 @@
                                 <td>{{ bill.vendor.name|truncate(20) }}</td>
                                 <td>{{ bill.date.strftime('%Y-%m-%d') }}</td>
                                 <td>{{ bill.due_date.strftime('%Y-%m-%d') if bill.due_date else '' }}</td>
-                                <td class="text-end">${{ "%0.2f"|format(bill.total) }}</td>
+                                <td class="text-end">${{ bill.total|money }}</td>
                                 <td>
                                     {% if bill.status == 'paid' %}
                                         <span class="badge bg-success">Paid</span>
@@ -332,7 +332,7 @@
                         <p class="mb-1">{{ invoice.customer.name }}</p>
                         <div class="d-flex justify-content-between align-items-center">
                             <small class="text-muted">{{ invoice.status|title }}</small>
-                            <strong>${{ "%0.2f"|format(invoice.total) }}</strong>
+                            <strong>${{ invoice.total|money }}</strong>
                         </div>
                     </a>
                     {% else %}

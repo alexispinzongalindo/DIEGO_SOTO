@@ -37,8 +37,8 @@
                         <td>{{ invoice.customer.name if invoice.customer else '' }}</td>
                         <td>{{ invoice.date.strftime('%Y-%m-%d') if invoice.date else '' }}</td>
                         <td>{{ invoice.due_date.strftime('%Y-%m-%d') if invoice.due_date else '' }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(invoice.total or 0) }}</td>
-                        <td class="text-end">${{ "%0.2f"|format(invoice.balance or 0) }}</td>
+                        <td class="text-end">${{ (invoice.total or 0)|money }}</td>
+                        <td class="text-end">${{ (invoice.balance or 0)|money }}</td>
                         <td>
                             {% if invoice.status == 'paid' %}
                                 <span class="badge bg-success">Paid</span>
