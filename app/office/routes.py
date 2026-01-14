@@ -11,7 +11,7 @@ from app.office import bp
 from app.office.forms import MeetingForm, ProjectForm, LibraryDocumentForm, EmailLibraryDocumentForm, DeleteForm, AdminSettingsForm
 from app.office.ai_assistant import run_assistant
 from app.office.library_storage import save_uploaded_file, get_document_abs_path, delete_document_file
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 
 @bp.app_context_processor
@@ -468,6 +468,27 @@ def _set_app_setting(key: str, value: str):
         return True, ''
     except Exception as e:
         db.session.rollback()
+        try:
+            msg = (str(e) or '').strip().lower()
+            is_trunc = (
+                'stringdatarighttruncation' in msg
+                or 'value too long for type character varying(200)' in msg
+                or 'character varying(200)' in msg
+            )
+            if is_trunc and db.engine.dialect.name == 'postgresql':
+                db.session.execute(text('ALTER TABLE app_setting ALTER COLUMN value TYPE TEXT'))
+                db.session.commit()
+
+                row = AppSetting.query.filter_by(key=key).first()
+                if row is None:
+                    row = AppSetting(key=key)
+                    db.session.add(row)
+                row.value = (value or '').strip()
+                row.updated_at = datetime.utcnow()
+                db.session.commit()
+                return True, ''
+        except Exception:
+            db.session.rollback()
         msg = (str(e) or '').strip()
         if msg:
             return False, f"Unable to save settings. {msg}"
