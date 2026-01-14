@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 from time import time
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
@@ -114,11 +115,13 @@ class Invoice(db.Model):
 
     @property
     def paid_amount(self):
-        return float(sum((p.amount or 0) for p in self.payments))
+        return float(sum(((p.amount or Decimal('0')) for p in self.payments), Decimal('0')))
 
     @property
     def balance(self):
-        return float((self.total or 0) - sum((p.amount or 0) for p in self.payments))
+        total = self.total or Decimal('0')
+        paid = sum(((p.amount or Decimal('0')) for p in self.payments), Decimal('0'))
+        return float(total - paid)
 
     @property
     def is_overdue(self):
@@ -224,11 +227,13 @@ class Bill(db.Model):
 
     @property
     def paid_amount(self):
-        return float(sum((p.amount or 0) for p in self.payments))
+        return float(sum(((p.amount or Decimal('0')) for p in self.payments), Decimal('0')))
 
     @property
     def balance(self):
-        return float((self.total or 0) - sum((p.amount or 0) for p in self.payments))
+        total = self.total or Decimal('0')
+        paid = sum(((p.amount or Decimal('0')) for p in self.payments), Decimal('0'))
+        return float(total - paid)
 
     @property
     def is_overdue(self):
