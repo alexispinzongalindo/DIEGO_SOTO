@@ -42,7 +42,7 @@
                                 <li>Use the top menu to open:
                                     <ul class="mb-0">
                                         <li>Accounts Receivable: Invoices, Quotes, Customers, Payments</li>
-                                        <li>Accounts Payable: Bills, Vendors, Payments</li>
+                                        <li>Accounts Payable: Bills, Vendors, Payments, Pay Bills (Demo Check)</li>
                                         <li>Operations: Purchase Orders</li>
                                         <li>Office: Agenda, Notifications, Document Library</li>
                                     </ul>
@@ -56,12 +56,75 @@
                                 <li>Usa el menú superior para abrir:
                                     <ul class="mb-0">
                                         <li>Cuentas por Cobrar: Facturas, Cotizaciones, Clientes, Pagos</li>
-                                        <li>Cuentas por Pagar: Cuentas, Proveedores, Pagos</li>
+                                        <li>Cuentas por Pagar: Cuentas, Proveedores, Pagos, Pay Bills (Demo Check)</li>
                                         <li>Operaciones: Órdenes de Compra</li>
                                         <li>Oficina: Agenda, Notificaciones, Biblioteca de Documentos</li>
                                     </ul>
                                 </li>
                             </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item" data-instructions-item>
+                <h2 class="accordion-header" id="ins-heading-13">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ins-collapse-13" aria-expanded="false" aria-controls="ins-collapse-13">
+                        <span data-lang="en">Pay Bills + Print Demo Check (A/P)</span>
+                        <span data-lang="es">Pagar Cuentas + Imprimir Cheque de Demostración (C/P)</span>
+                    </button>
+                </h2>
+                <div id="ins-collapse-13" class="accordion-collapse collapse" aria-labelledby="ins-heading-13" data-bs-parent="#instructionsAccordion">
+                    <div class="accordion-body">
+                        <div data-lang="en">
+                            <ol>
+                                <li>Go to <strong>Accounts Payable → Pay Bills (Demo Check)</strong>.</li>
+                                <li>Select a <strong>Vendor</strong> to load their open bills.</li>
+                                <li>Check the bills you want to pay and enter the <strong>Pay Amount</strong> for each bill.</li>
+                                <li>Optional: enter <strong>Payment Date</strong>, <strong>Check #</strong>, and <strong>Memo</strong>.</li>
+                                <li>Click <strong>Generate Demo Voucher Check PDF</strong>.</li>
+                                <li>The system will:
+                                    <ul>
+                                        <li>Record payments (one payment per selected bill).</li>
+                                        <li>Update bill status (Open / Partial / Paid).</li>
+                                        <li>Open the generated <strong>PDF</strong> in the browser for printing.</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                            <div class="fw-semibold">Where to view/print the check PDF later</div>
+                            <ul class="mb-0">
+                                <li><strong>Vendor</strong>: Accounts Payable → Vendors → open the vendor → Payments table → <strong>Check PDF</strong> column.</li>
+                                <li><strong>Bill</strong>: Open the bill → Payments table → <strong>Check PDF</strong> column.</li>
+                                <li><strong>Payments list</strong>: Accounts Payable → Payments → <strong>Check PDF</strong> column.</li>
+                            </ul>
+                            <div class="alert alert-warning mt-3 mb-0" role="alert">
+                                Demo checks are <strong>not valid for deposit</strong> (no bank/MICR printed). Use this for process demos and printing alignment tests.
+                            </div>
+                        </div>
+                        <div data-lang="es">
+                            <ol>
+                                <li>Ve a <strong>Accounts Payable → Pay Bills (Demo Check)</strong>.</li>
+                                <li>Selecciona un <strong>Vendor</strong> para cargar las cuentas abiertas.</li>
+                                <li>Marca las cuentas que quieres pagar e ingresa el <strong>Pay Amount</strong> para cada cuenta.</li>
+                                <li>Opcional: ingresa <strong>Payment Date</strong>, <strong>Check #</strong> y <strong>Memo</strong>.</li>
+                                <li>Haz clic en <strong>Generate Demo Voucher Check PDF</strong>.</li>
+                                <li>El sistema va a:
+                                    <ul>
+                                        <li>Registrar pagos (un pago por cada cuenta seleccionada).</li>
+                                        <li>Actualizar el estado (Open / Partial / Paid).</li>
+                                        <li>Abrir el <strong>PDF</strong> en el navegador para imprimir.</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                            <div class="fw-semibold">Dónde ver/imprimir el PDF del cheque después</div>
+                            <ul class="mb-0">
+                                <li><strong>Vendor</strong>: Accounts Payable → Vendors → abre el proveedor → tabla de Payments → columna <strong>Check PDF</strong>.</li>
+                                <li><strong>Bill</strong>: Abre la cuenta → tabla de Payments → columna <strong>Check PDF</strong>.</li>
+                                <li><strong>Lista de Payments</strong>: Accounts Payable → Payments → columna <strong>Check PDF</strong>.</li>
+                            </ul>
+                            <div class="alert alert-warning mt-3 mb-0" role="alert">
+                                Los cheques de demostración <strong>no son válidos para depósito</strong> (sin banco/MICR). Úsalos para demos del proceso y pruebas de impresión.
+                            </div>
                         </div>
                     </div>
                 </div>
