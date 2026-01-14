@@ -49,13 +49,13 @@
           <span class="text-primary"><i class="bi bi-stars"></i></span>
           <span>Modern finance + operations workflow for your business</span>
         </div>
-        <h1 class="display-5 fw-bold mt-3 mb-3 section-title">Run invoices, quotes, bills, and purchase orders in one streamlined platform.</h1>
-        <p class="lead text-muted mb-4">Purpose-built for speed and clarity: simplified line items, automatic totals with tax, document library, and a voice assistant that guides users step-by-step.</p>
+        <h1 class="display-5 fw-bold mt-3 mb-3 section-title">Run invoices, quotes, bills, payments, and purchase orders in one streamlined platform.</h1>
+        <p class="lead text-muted mb-4">Purpose-built for speed and clarity: branded PDFs with saved settings, automatic totals with tax, a built-in document library, reports, and a voice assistant that guides users step-by-step.</p>
         <div class="d-flex flex-wrap gap-2">
           <a class="btn btn-primary btn-lg" href="{{ url_for('auth.login') }}">Get Started</a>
           <a class="btn btn-outline-secondary btn-lg" href="#features">See Features</a>
         </div>
-        <div class="mt-4 text-muted small">Secure access. Designed for daily use. Mobile-friendly screens.</div>
+        <div class="mt-4 text-muted small">Secure access. Designed for daily use. Mobile-friendly screens. Settings-driven company header and IMPORTANT NOTE defaults.</div>
       </div>
       <div class="col-lg-5">
         <div class="card feature-card">
@@ -105,6 +105,42 @@
                   </div>
                 </div>
               </div>
+              <div class="col-6">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-check2-circle text-success"></i>
+                  <div>
+                    <div class="fw-semibold">Payments</div>
+                    <div class="text-muted small">Streamlined payment processing</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-check2-circle text-success"></i>
+                  <div>
+                    <div class="fw-semibold">Reports</div>
+                    <div class="text-muted small">Aging reports and dashboards</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-check2-circle text-success"></i>
+                  <div>
+                    <div class="fw-semibold">Operations</div>
+                    <div class="text-muted small">Centralized document management</div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="d-flex align-items-start gap-2">
+                  <i class="bi bi-check2-circle text-success"></i>
+                  <div>
+                    <div class="fw-semibold">Office</div>
+                    <div class="text-muted small">Settings-driven company branding</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -144,6 +180,16 @@
       <div class="col-md-6 col-lg-4">
         <div class="card h-100 feature-card">
           <div class="card-body p-4">
+            <div class="feature-icon mb-3"><i class="bi bi-gear"></i></div>
+            <div class="fw-semibold">Company branding + defaults</div>
+            <div class="text-muted">Set company header (logo, address, phones, fax, emails) and separate default IMPORTANT NOTE blocks for invoices and quotes.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 feature-card">
+          <div class="card-body p-4">
             <div class="feature-icon mb-3"><i class="bi bi-phone"></i></div>
             <div class="fw-semibold">Mobile-friendly workflows</div>
             <div class="text-muted">Responsive layouts prevent edge overflow and keep key actions accessible on smaller screens.</div>
@@ -167,6 +213,16 @@
             <div class="feature-icon mb-3"><i class="bi bi-envelope"></i></div>
             <div class="fw-semibold">Email documents by voice</div>
             <div class="text-muted">Send invoices, quotes, and purchase orders as PDFs—by number or contact name. Uses saved emails or asks to add them.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-4">
+        <div class="card h-100 feature-card">
+          <div class="card-body p-4">
+            <div class="feature-icon mb-3"><i class="bi bi-graph-up"></i></div>
+            <div class="fw-semibold">Reports + tracking</div>
+            <div class="text-muted">Aging reports and dashboards help track receivables, payables, and activity—so you always know what’s due.</div>
           </div>
         </div>
       </div>
