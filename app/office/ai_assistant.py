@@ -830,6 +830,17 @@ def _build_invoice_pdf(invoice: Invoice, items: list[InvoiceItem]) -> bytes:
     pdf.multi_cell(0, 5, _amount_in_words(total))
 
     notes_text = (getattr(invoice, 'notes', None) or '').strip()
+    if not notes_text:
+        try:
+            if inspect(db.engine).has_table('app_setting'):
+                row = AppSetting.query.filter_by(key='invoice_important_note').first()
+                notes_text = (row.value or '').strip() if row else ''
+        except Exception:
+            db.session.rollback()
+            notes_text = ''
+    if not notes_text:
+        notes_text = (os.environ.get('INVOICE_IMPORTANT_NOTE') or '').strip()
+
     if notes_text:
         pdf.ln(2)
         pdf.set_font('Helvetica', 'B', 10)

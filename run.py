@@ -55,6 +55,7 @@ def ensure_company_settings() -> None:
             'company_email_2': (os.environ.get('COMPANY_EMAIL_2') or '').strip(),
             'company_email_3': (os.environ.get('COMPANY_EMAIL_3') or '').strip(),
             'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
+            'invoice_important_note': (os.environ.get('INVOICE_IMPORTANT_NOTE') or '').strip(),
         }
 
         now = datetime.utcnow()

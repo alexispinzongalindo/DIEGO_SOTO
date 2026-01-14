@@ -102,6 +102,11 @@
             <div class="form-text">Path relative to the app root (example: <code>static/img/logo.png</code>).</div>
           </div>
 
+          <div class="mb-3">
+            <label class="form-label">{{ form.invoice_important_note.label.text }}</label>
+            {{ form.invoice_important_note(class_='form-control', rows=5) }}
+          </div>
+
           <div class="d-flex justify-content-end">
             {{ form.submit(class_='btn btn-primary') }}
           </div>

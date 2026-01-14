@@ -495,6 +495,7 @@ def settings():
         form.company_email_2.data = _get_app_setting('company_email_2')
         form.company_email_3.data = _get_app_setting('company_email_3')
         form.company_logo_path.data = _get_app_setting('company_logo_path')
+        form.invoice_important_note.data = _get_app_setting('invoice_important_note')
 
     if form.validate_on_submit():
         sel = (form.show_marketing_landing.data or 'off').strip().lower()
@@ -512,6 +513,7 @@ def settings():
         _set_app_setting('company_email_2', form.company_email_2.data or '')
         _set_app_setting('company_email_3', form.company_email_3.data or '')
         _set_app_setting('company_logo_path', form.company_logo_path.data or '')
+        _set_app_setting('invoice_important_note', form.invoice_important_note.data or '')
         flash('Settings saved.', 'success')
         return redirect(url_for('office.settings'))
 
