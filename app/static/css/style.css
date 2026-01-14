@@ -27,6 +27,51 @@ body { background-color: #f8f9fa; }
     min-height: 92px;
   }
 
+  .app-navbar .navbar-collapse {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    background: rgba(9, 35, 68, 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.24);
+  }
+
+  .app-navbar .navbar-collapse .nav-link {
+    color: rgba(255, 255, 255, 0.96) !important;
+    font-weight: 600;
+  }
+
+  .app-navbar .navbar-collapse .nav-link:hover,
+  .app-navbar .navbar-collapse .nav-link:focus {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 0.5rem;
+  }
+
+  .app-navbar .navbar-collapse .dropdown-menu {
+    background: rgba(9, 35, 68, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.22);
+  }
+
+  .app-navbar .navbar-collapse .dropdown-item {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  .app-navbar .navbar-collapse .dropdown-item:hover,
+  .app-navbar .navbar-collapse .dropdown-item:focus {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .app-navbar .navbar-collapse .dropdown-divider {
+    border-top-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .app-navbar .navbar-collapse .dropdown-header {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
   .app-navbar .navbar-brand {
     padding-top: 0.15rem;
     padding-bottom: 0.15rem;
