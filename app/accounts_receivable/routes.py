@@ -288,6 +288,16 @@ def _pdf_table_row(pdf: FPDF, cols: list[dict], y: float, row_min_h: float = 6.0
     return y + h
 
 
+def _pdf_extend_table_grid(pdf: FPDF, y_start: float, y_end: float, x_left: float, x_right: float, col_xs: list[float]) -> None:
+    if y_end <= y_start:
+        return
+    h = y_end - y_start
+    pdf.rect(x_left, y_start, x_right - x_left, h)
+    for x in col_xs:
+        if x_left < x < x_right:
+            pdf.line(x, y_start, x, y_end)
+
+
 def _build_quote_pdf(quote, items):
     pdf = FPDF(format='Letter', unit='mm')
     pdf.set_auto_page_break(auto=True, margin=10)
@@ -447,6 +457,15 @@ def _build_quote_pdf(quote, items):
         if y > 235:
             pdf.add_page()
             y = 20
+
+    _pdf_extend_table_grid(
+        pdf,
+        y_start=y,
+        y_end=232,
+        x_left=10,
+        x_right=200,
+        col_xs=[30, 50, 170],
+    )
 
     prev_apb = pdf.auto_page_break
     prev_bm = pdf.b_margin
@@ -674,6 +693,15 @@ def _build_invoice_pdf(invoice, items):
     if y > footer_top - 10:
         pdf.add_page()
         footer_top = 235
+
+    _pdf_extend_table_grid(
+        pdf,
+        y_start=y,
+        y_end=footer_top,
+        x_left=10,
+        x_right=200,
+        col_xs=[30, 50, 170],
+    )
 
     notes_text = (getattr(invoice, 'notes', None) or '').strip()
     if not notes_text:
