@@ -454,10 +454,10 @@ def _get_app_setting(key: str) -> str:
         return ''
 
 
-def _set_app_setting(key: str, value: str) -> None:
+def _set_app_setting(key: str, value: str):
     try:
         if not inspect(db.engine).has_table('app_setting'):
-            return
+            return True, ''
         row = AppSetting.query.filter_by(key=key).first()
         if row is None:
             row = AppSetting(key=key)
@@ -465,8 +465,13 @@ def _set_app_setting(key: str, value: str) -> None:
         row.value = (value or '').strip()
         row.updated_at = datetime.utcnow()
         db.session.commit()
-    except Exception:
+        return True, ''
+    except Exception as e:
         db.session.rollback()
+        msg = (str(e) or '').strip()
+        if msg:
+            return False, f"Unable to save settings. {msg}"
+        return False, 'Unable to save settings. Database update failed.'
 
 
 @bp.route('/settings', methods=['GET', 'POST'])
@@ -499,21 +504,30 @@ def settings():
 
     if form.validate_on_submit():
         sel = (form.show_marketing_landing.data or 'off').strip().lower()
-        _set_app_setting('show_marketing_landing', 'on' if sel == 'on' else 'off')
+        ok, err = _set_app_setting('show_marketing_landing', 'on' if sel == 'on' else 'off')
+        if not ok:
+            flash(err, 'danger')
+            return render_template('office/settings.html', title='Settings', form=form)
 
-        _set_app_setting('company_name', form.company_name.data or '')
-        _set_app_setting('company_address', form.company_address.data or '')
-        _set_app_setting('company_phone', form.company_phone.data or '')
-        _set_app_setting('company_phone_1', form.company_phone_1.data or '')
-        _set_app_setting('company_phone_2', form.company_phone_2.data or '')
-        _set_app_setting('company_phone_3', form.company_phone_3.data or '')
-        _set_app_setting('company_fax', form.company_fax.data or '')
-        _set_app_setting('company_email', form.company_email.data or '')
-        _set_app_setting('company_email_1', form.company_email_1.data or '')
-        _set_app_setting('company_email_2', form.company_email_2.data or '')
-        _set_app_setting('company_email_3', form.company_email_3.data or '')
-        _set_app_setting('company_logo_path', form.company_logo_path.data or '')
-        _set_app_setting('invoice_important_note', form.invoice_important_note.data or '')
+        for k, v in [
+            ('company_name', form.company_name.data or ''),
+            ('company_address', form.company_address.data or ''),
+            ('company_phone', form.company_phone.data or ''),
+            ('company_phone_1', form.company_phone_1.data or ''),
+            ('company_phone_2', form.company_phone_2.data or ''),
+            ('company_phone_3', form.company_phone_3.data or ''),
+            ('company_fax', form.company_fax.data or ''),
+            ('company_email', form.company_email.data or ''),
+            ('company_email_1', form.company_email_1.data or ''),
+            ('company_email_2', form.company_email_2.data or ''),
+            ('company_email_3', form.company_email_3.data or ''),
+            ('company_logo_path', form.company_logo_path.data or ''),
+            ('invoice_important_note', form.invoice_important_note.data or ''),
+        ]:
+            ok, err = _set_app_setting(k, v)
+            if not ok:
+                flash(err, 'danger')
+                return render_template('office/settings.html', title='Settings', form=form)
         flash('Settings saved.', 'success')
         return redirect(url_for('office.settings'))
 

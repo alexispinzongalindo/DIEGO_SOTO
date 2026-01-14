@@ -12,6 +12,16 @@
       </div>
     </div>
 
+    {% if form.errors %}
+      <div class="alert alert-danger" role="alert">
+        {% for field_name, errs in form.errors.items() %}
+          {% for err in errs %}
+            <div><strong>{{ field_name }}:</strong> {{ err }}</div>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    {% endif %}
+
     <div class="card shadow-sm mb-3">
       <div class="card-body d-flex justify-content-between align-items-center">
         <div>
