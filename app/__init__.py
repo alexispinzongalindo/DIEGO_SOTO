@@ -58,7 +58,7 @@ def create_app(config_class=Config):
                 'company_email_1': (os.environ.get('COMPANY_EMAIL_1') or '').strip(),
                 'company_email_2': (os.environ.get('COMPANY_EMAIL_2') or '').strip(),
                 'company_email_3': (os.environ.get('COMPANY_EMAIL_3') or '').strip(),
-                'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
+                'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.png',
             }
 
             if not inspect(db.engine).has_table('app_setting'):

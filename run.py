@@ -54,7 +54,7 @@ def ensure_company_settings() -> None:
             'company_email_1': (os.environ.get('COMPANY_EMAIL_1') or '').strip(),
             'company_email_2': (os.environ.get('COMPANY_EMAIL_2') or '').strip(),
             'company_email_3': (os.environ.get('COMPANY_EMAIL_3') or '').strip(),
-            'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.jpeg',
+            'company_logo_path': (os.environ.get('COMPANY_LOGO_PATH') or '').strip() or 'static/img/logo.png',
             'invoice_important_note': (os.environ.get('INVOICE_IMPORTANT_NOTE') or '').strip(),
             'quote_important_note': (os.environ.get('QUOTE_IMPORTANT_NOTE') or '').strip(),
         }
@@ -68,6 +68,14 @@ def ensure_company_settings() -> None:
                 continue
             existing = (row.value or '').strip()
             if (not existing) and val:
+                row.value = val
+                row.updated_at = now
+            elif key == 'company_logo_path' and val and existing.lower() in (
+                'static/img/logo.jpeg',
+                'static/img/logo.jpg',
+                '/static/img/logo.jpeg',
+                '/static/img/logo.jpg',
+            ):
                 row.value = val
                 row.updated_at = now
 
