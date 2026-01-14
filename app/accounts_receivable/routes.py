@@ -298,37 +298,6 @@ def _pdf_extend_table_grid(pdf: FPDF, y_start: float, y_end: float, x_left: floa
             pdf.line(x, y_start, x, y_end)
 
 
-def _pdf_draw_logo_watermark(pdf: FPDF, logo_path: str) -> None:
-    abs_logo = _resolve_logo_abs_path(logo_path)
-    if not abs_logo:
-        return
-    try:
-        prev_alpha = getattr(pdf, 'alpha', None)
-        try:
-            pdf.set_alpha(0.07)
-        except Exception:
-            pass
-
-        wm_w = min(pdf.w, pdf.h) * 0.55
-        x = (pdf.w - wm_w) / 2
-        y = (pdf.h - wm_w) / 2
-        try:
-            pdf.image(abs_logo, x=x, y=y, w=wm_w)
-        except Exception:
-            pass
-        try:
-            pdf.set_alpha(1)
-        except Exception:
-            pass
-        if prev_alpha is not None:
-            try:
-                pdf.set_alpha(prev_alpha)
-            except Exception:
-                pass
-    except Exception:
-        pass
-
-
 def _build_quote_pdf(quote, items):
     pdf = FPDF(format='Letter', unit='mm')
     pdf.set_auto_page_break(auto=True, margin=10)
@@ -553,7 +522,6 @@ def _build_invoice_pdf(invoice, items):
 
     header = _company_header_settings()
     logo_path = _pdf_cell_text(header.get('logo_path'))
-    _pdf_draw_logo_watermark(pdf, logo_path)
     name = _pdf_cell_text(header.get('name'))
     address = _pdf_cell_text(header.get('address'))
     phones = [
@@ -719,13 +687,11 @@ def _build_invoice_pdf(invoice, items):
         )
         if y > 235:
             pdf.add_page()
-            _pdf_draw_logo_watermark(pdf, logo_path)
             y = 20
 
     footer_top = 235
     if y > footer_top - 10:
         pdf.add_page()
-        _pdf_draw_logo_watermark(pdf, logo_path)
         footer_top = 235
 
     _pdf_extend_table_grid(
