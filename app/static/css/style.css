@@ -24,7 +24,7 @@ body { background-color: #f8f9fa; }
 
 @media (max-width: 575.98px) {
   .app-navbar {
-    min-height: 76px;
+    min-height: 92px;
   }
 
   .app-navbar .navbar-brand {
@@ -33,7 +33,7 @@ body { background-color: #f8f9fa; }
   }
 
   .app-navbar .navbar-logo {
-    height: 64px;
+    height: 82px;
   }
 }
 
